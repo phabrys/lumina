@@ -1,0 +1,44 @@
+{
+  "entity": {
+    "switch": {
+      "auto_lights": {
+        "default": "mdi:lightbulb-auto",
+        "state": {
+          "off": "mdi:lightbulb-off-outline"
+        }
+      },
+      "auto_fans": {
+        "default": "mdi:fan-auto",
+        "state": {
+          "off": "mdi:fan-off"
+        }
+      }
+    },
+    "number": {
+      "lux_threshold": {
+        "default": "mdi:brightness-5"
+      },
+      "light_off_delay": {
+        "default": "mdi:timer-outline"
+      },
+      "fan_off_delay": {
+        "default": "mdi:timer-outline"
+      },
+      "temperature_threshold": {
+        "default": "mdi:thermometer"
+      },
+      "override_duration": {
+        "default": "mdi:hand-back-right"
+      }
+    },
+    "sensor": {
+      "room_state": {
+        "default": "mdi:home-account",
+        "state": {
+          "vacant": "mdi:home-outline",
+          "override": "mdi:hand-back-right"
+        }
+      }
+    }
+  }
+}

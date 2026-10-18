@@ -1,0 +1,117 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ajouter une pièce",
+        "description": "Choisis la pièce à gérer. Ses entités seront proposées automatiquement.",
+        "data": {
+          "area_id": "Pièce"
+        }
+      },
+      "entities": {
+        "title": "Entités : {area}",
+        "description": "Vérifie les entités détectées dans la pièce.",
+        "data": {
+          "presence_sensors": "Capteurs de présence",
+          "lights": "Lumières",
+          "illuminance_sensor": "Capteur de luminosité",
+          "fans": "Ventilateurs",
+          "temperature_sensor": "Capteur de température"
+        },
+        "data_description": {
+          "presence_sensors": "La pièce est occupée dès qu'un de ces capteurs est actif.",
+          "lights": "Allumées à l'arrivée si la pièce est sombre.",
+          "illuminance_sensor": "Sans capteur, la pièce est toujours considérée sombre.",
+          "fans": "Allumés à l'arrivée si la température dépasse le seuil.",
+          "temperature_sensor": "Sans capteur, les ventilateurs suivent uniquement la présence."
+        }
+      }
+    },
+    "error": {
+      "no_presence": "Choisis au moins un capteur de présence.",
+      "no_actuator": "Choisis au moins une lumière ou un ventilateur."
+    },
+    "abort": {
+      "already_configured": "Cette pièce est déjà gérée par Lumina."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Entités de la pièce",
+        "data": {
+          "presence_sensors": "Capteurs de présence",
+          "lights": "Lumières",
+          "illuminance_sensor": "Capteur de luminosité",
+          "fans": "Ventilateurs",
+          "temperature_sensor": "Capteur de température"
+        },
+        "data_description": {
+          "presence_sensors": "La pièce est occupée dès qu'un de ces capteurs est actif.",
+          "lights": "Allumées à l'arrivée si la pièce est sombre.",
+          "illuminance_sensor": "Sans capteur, la pièce est toujours considérée sombre.",
+          "fans": "Allumés à l'arrivée si la température dépasse le seuil.",
+          "temperature_sensor": "Sans capteur, les ventilateurs suivent uniquement la présence."
+        }
+      }
+    },
+    "error": {
+      "no_presence": "Choisis au moins un capteur de présence.",
+      "no_actuator": "Choisis au moins une lumière ou un ventilateur."
+    }
+  },
+  "entity": {
+    "switch": {
+      "auto_lights": {
+        "name": "Gestion auto des lumières"
+      },
+      "auto_fans": {
+        "name": "Gestion auto des ventilateurs"
+      }
+    },
+    "number": {
+      "lux_threshold": {
+        "name": "Seuil de luminosité"
+      },
+      "light_off_delay": {
+        "name": "Délai d'extinction des lumières"
+      },
+      "fan_off_delay": {
+        "name": "Délai d'arrêt des ventilateurs"
+      },
+      "temperature_threshold": {
+        "name": "Seuil de température"
+      },
+      "override_duration": {
+        "name": "Durée du contrôle manuel"
+      }
+    },
+    "sensor": {
+      "room_state": {
+        "name": "État de la pièce",
+        "state": {
+          "occupied": "Occupée",
+          "vacant": "Vide",
+          "override": "Contrôle manuel"
+        },
+        "state_attributes": {
+          "occupied": {
+            "name": "Occupée"
+          },
+          "lights_override_until": {
+            "name": "Contrôle manuel des lumières jusqu'à"
+          },
+          "fans_override_until": {
+            "name": "Contrôle manuel des ventilateurs jusqu'à"
+          },
+          "lights_off_pending": {
+            "name": "Extinction des lumières programmée"
+          },
+          "fans_off_pending": {
+            "name": "Arrêt des ventilateurs programmé"
+          }
+        }
+      }
+    }
+  }
+}
