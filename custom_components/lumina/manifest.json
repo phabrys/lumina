@@ -1,0 +1,14 @@
+{
+  "domain": "lumina",
+  "name": "Lumina",
+  "codeowners": [
+    "@phabrys"
+  ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/phabrys/lumina",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/phabrys/lumina/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

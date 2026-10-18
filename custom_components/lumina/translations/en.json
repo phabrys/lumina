@@ -1,0 +1,117 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add a room",
+        "description": "Choose the room to manage. Its entities will be suggested automatically.",
+        "data": {
+          "area_id": "Room"
+        }
+      },
+      "entities": {
+        "title": "Entities: {area}",
+        "description": "Check the entities detected in the room.",
+        "data": {
+          "presence_sensors": "Presence sensors",
+          "lights": "Lights",
+          "illuminance_sensor": "Illuminance sensor",
+          "fans": "Fans",
+          "temperature_sensor": "Temperature sensor"
+        },
+        "data_description": {
+          "presence_sensors": "The room is occupied as soon as one of these sensors is on.",
+          "lights": "Turned on on arrival when the room is dark.",
+          "illuminance_sensor": "Without a sensor, the room is always considered dark.",
+          "fans": "Turned on on arrival when the temperature exceeds the threshold.",
+          "temperature_sensor": "Without a sensor, fans follow presence only."
+        }
+      }
+    },
+    "error": {
+      "no_presence": "Select at least one presence sensor.",
+      "no_actuator": "Select at least one light or fan."
+    },
+    "abort": {
+      "already_configured": "This room is already managed by Lumina."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Room entities",
+        "data": {
+          "presence_sensors": "Presence sensors",
+          "lights": "Lights",
+          "illuminance_sensor": "Illuminance sensor",
+          "fans": "Fans",
+          "temperature_sensor": "Temperature sensor"
+        },
+        "data_description": {
+          "presence_sensors": "The room is occupied as soon as one of these sensors is on.",
+          "lights": "Turned on on arrival when the room is dark.",
+          "illuminance_sensor": "Without a sensor, the room is always considered dark.",
+          "fans": "Turned on on arrival when the temperature exceeds the threshold.",
+          "temperature_sensor": "Without a sensor, fans follow presence only."
+        }
+      }
+    },
+    "error": {
+      "no_presence": "Select at least one presence sensor.",
+      "no_actuator": "Select at least one light or fan."
+    }
+  },
+  "entity": {
+    "switch": {
+      "auto_lights": {
+        "name": "Automatic lights"
+      },
+      "auto_fans": {
+        "name": "Automatic fans"
+      }
+    },
+    "number": {
+      "lux_threshold": {
+        "name": "Illuminance threshold"
+      },
+      "light_off_delay": {
+        "name": "Lights off delay"
+      },
+      "fan_off_delay": {
+        "name": "Fans off delay"
+      },
+      "temperature_threshold": {
+        "name": "Temperature threshold"
+      },
+      "override_duration": {
+        "name": "Manual override duration"
+      }
+    },
+    "sensor": {
+      "room_state": {
+        "name": "Room state",
+        "state": {
+          "occupied": "Occupied",
+          "vacant": "Vacant",
+          "override": "Manual override"
+        },
+        "state_attributes": {
+          "occupied": {
+            "name": "Occupied"
+          },
+          "lights_override_until": {
+            "name": "Lights override until"
+          },
+          "fans_override_until": {
+            "name": "Fans override until"
+          },
+          "lights_off_pending": {
+            "name": "Lights off pending"
+          },
+          "fans_off_pending": {
+            "name": "Fans off pending"
+          }
+        }
+      }
+    }
+  }
+}
