@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 
+import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_fire_time_changed,
@@ -28,6 +29,16 @@ LIGHT = "light.salon"
 FAN = "fan.salon"
 ROOM_STATE = "sensor.lumina_salon_room_state"
 
+NOON = "2026-10-18T12:00:00-07:00"  # fuseau des tests : US/Pacific
+NIGHT = "2026-10-18T23:30:00-07:00"
+
+
+@pytest.fixture(autouse=True)
+def daytime(freezer):
+    """Fige l'horloge en journée, sauf si un test la déplace."""
+    freezer.move_to(NOON)
+    return freezer
+
 
 async def _setup(hass: HomeAssistant, **extra) -> MockConfigEntry:
     entry = MockConfigEntry(
@@ -53,7 +64,7 @@ def _entities(calls) -> list[list[str]]:
 
 
 async def test_lights_on_when_dark(hass: HomeAssistant) -> None:
-    turn_on = async_mock_service(hass, "homeassistant", "turn_on")
+    turn_on = async_mock_service(hass, "light", "turn_on")
     hass.states.async_set(PIR, "off")
     hass.states.async_set(LUX, "10")
     hass.states.async_set(LIGHT, "off")
@@ -63,11 +74,12 @@ async def test_lights_on_when_dark(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
 
     assert _entities(turn_on) == [[LIGHT]]
+    assert turn_on[0].data["brightness_pct"] == 100
     assert hass.states.get(ROOM_STATE).state == "occupied"
 
 
 async def test_lights_stay_off_when_bright(hass: HomeAssistant) -> None:
-    turn_on = async_mock_service(hass, "homeassistant", "turn_on")
+    turn_on = async_mock_service(hass, "light", "turn_on")
     hass.states.async_set(PIR, "off")
     hass.states.async_set(LUX, "500")
     hass.states.async_set(LIGHT, "off")
@@ -96,7 +108,7 @@ async def test_lights_off_after_delay(hass: HomeAssistant) -> None:
 
 
 async def test_manual_override_blocks_automation(hass: HomeAssistant) -> None:
-    turn_on = async_mock_service(hass, "homeassistant", "turn_on")
+    turn_on = async_mock_service(hass, "light", "turn_on")
     hass.states.async_set(PIR, "on")
     hass.states.async_set(LUX, "500")
     hass.states.async_set(LIGHT, "on")
@@ -144,7 +156,7 @@ async def test_fans_follow_temperature(hass: HomeAssistant) -> None:
 
 
 async def test_disable_switch_stops_automation(hass: HomeAssistant) -> None:
-    turn_on = async_mock_service(hass, "homeassistant", "turn_on")
+    turn_on = async_mock_service(hass, "light", "turn_on")
     hass.states.async_set(PIR, "off")
     hass.states.async_set(LUX, "10")
     hass.states.async_set(LIGHT, "off")
@@ -160,3 +172,57 @@ async def test_disable_switch_stops_automation(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
 
     assert turn_on == []
+
+
+async def test_night_dims_lights(hass: HomeAssistant, daytime) -> None:
+    daytime.move_to(NIGHT)
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LUX, "10")
+    hass.states.async_set(LIGHT, "off")
+    await _setup(hass)
+    assert hass.states.get(ROOM_STATE).attributes["period"] == "night"
+
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+
+    assert _entities(turn_on) == [[LIGHT]]
+    assert turn_on[0].data["brightness_pct"] == 30
+
+
+async def test_night_brightness_zero_disables_lights(hass: HomeAssistant, daytime) -> None:
+    daytime.move_to(NIGHT)
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LUX, "10")
+    hass.states.async_set(LIGHT, "off")
+    await _setup(hass)
+
+    await hass.services.async_call(
+        "number",
+        "set_value",
+        {"entity_id": "number.lumina_salon_lights_brightness_night", "value": 0},
+        blocking=True,
+    )
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+
+    assert turn_on == []
+
+
+async def test_custom_night_window(hass: HomeAssistant) -> None:
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LIGHT, "off")
+    await _setup(hass)
+    assert hass.states.get(ROOM_STATE).attributes["period"] == "day"
+
+    # Nuit de 11 h à 13 h : il est midi, la pièce passe en période de nuit.
+    for entity_id, value in (
+        ("time.lumina_salon_night_start", "11:00:00"),
+        ("time.lumina_salon_night_end", "13:00:00"),
+    ):
+        await hass.services.async_call(
+            "time", "set_value", {"entity_id": entity_id, "time": value}, blocking=True
+        )
+    await hass.async_block_till_done()
+    assert hass.states.get(ROOM_STATE).attributes["period"] == "night"

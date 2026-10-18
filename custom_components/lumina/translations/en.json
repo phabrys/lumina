@@ -84,6 +84,21 @@
       },
       "override_duration": {
         "name": "Manual override duration"
+      },
+      "day_brightness": {
+        "name": "Lights brightness (day)"
+      },
+      "night_brightness": {
+        "name": "Lights brightness (night)"
+      },
+      "night_light_off_delay": {
+        "name": "Lights off delay (night)"
+      },
+      "night_fan_off_delay": {
+        "name": "Fans off delay (night)"
+      },
+      "night_temperature_threshold": {
+        "name": "Temperature threshold (night)"
       }
     },
     "sensor": {
@@ -109,8 +124,23 @@
           },
           "fans_off_pending": {
             "name": "Fans off pending"
+          },
+          "period": {
+            "name": "Period",
+            "state": {
+              "day": "Day",
+              "night": "Night"
+            }
           }
         }
+      }
+    },
+    "time": {
+      "night_start": {
+        "name": "Night start"
+      },
+      "night_end": {
+        "name": "Night end"
       }
     }
   }
