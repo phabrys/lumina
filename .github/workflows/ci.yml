@@ -18,6 +18,9 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
+          # Critères requis seulement pour le store HACS par défaut,
+          # pas pour une installation en dépôt personnalisé.
+          ignore: brands description topics license
 
   tests:
     runs-on: ubuntu-latest
