@@ -1,6 +1,9 @@
 {
   "domain": "lumina",
   "name": "Lumina",
+  "after_dependencies": [
+    "logbook"
+  ],
   "codeowners": [
     "@phabrys"
   ],
@@ -10,5 +13,5 @@
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/phabrys/lumina/issues",
   "requirements": [],
-  "version": "0.2.0"
+  "version": "0.3.0"
 }

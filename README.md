@@ -31,6 +31,17 @@ Chaque pièce a sa propre plage de nuit (22 h → 7 h par défaut) avec ses rég
 
 Mettre la même heure en début et en fin de nuit désactive le mode nuit pour la pièce. La période en cours (jour/nuit) apparaît en attribut du capteur d'état.
 
+Le switch **Nuit maintenant** force le mode nuit tout de suite ; il se désactive seul à la fin de la prochaine nuit.
+
+### Confort
+
+- **Maintien de présence** : une TV, une enceinte ou une clim active garde la pièce occupée quand les détecteurs ne voient plus personne (devant la TV sans bouger, par exemple). Le maintien prolonge une présence, il ne la déclenche pas.
+- **Température ressentie** : avec un capteur d'humidité, les ventilateurs suivent l'indice de chaleur (NOAA) plutôt que la température mesurée. 27 °C à 85 % d'humidité se ressentent comme 30 °C.
+- **Vitesse progressive** : les ventilateurs démarrent à la vitesse minimale (33 %) au seuil, puis montent jusqu'à 100 % sur l'écart réglé (3 °C). Une vitesse minimale à 0 revient au simple marche/arrêt. Changer la vitesse à la main compte comme une reprise manuelle.
+- **Avertissement avant extinction** : les lumières baissent à 20 % pendant 15 s avant de s'éteindre. Un mouvement pendant ce temps rétablit la lumière.
+- **Teinte** : 4000 K le jour, 2700 K la nuit, pour les lumières à blanc réglable (0 = ne pas modifier).
+- **Journal** : chaque décision apparaît dans le Journal avec sa raison, par exemple « allume les lumières à 30 % (nuit, 12 lx) ».
+
 Les lumières et ventilateurs peuvent aussi être des prises (`switch`), par exemple un ventilateur branché sur une prise Zigbee.
 
 ## Entités créées par pièce
@@ -51,6 +62,12 @@ Les lumières et ventilateurs peuvent aussi être des prises (`switch`), par exe
 | `number.…_delai_d_extinction_des_lumieres_nuit` | En secondes (défaut 60) |
 | `number.…_delai_d_arret_des_ventilateurs_nuit` | En secondes (défaut 1800) |
 | `number.…_seuil_de_temperature_nuit` | En °C (défaut 26) |
+| `switch.…_nuit_maintenant` | Force le mode nuit jusqu'à la fin de la prochaine nuit |
+| `sensor.…_temperature_ressentie` | Indice de chaleur (si un capteur d'humidité est choisi) |
+| `number.…_vitesse_minimale_des_ventilateurs` | En % (défaut 33, 0 = marche/arrêt) |
+| `number.…_ecart_pour_la_vitesse_maximale` | En °C (défaut 3) |
+| `number.…_avertissement_avant_extinction` | En secondes (défaut 15, 0 = extinction directe) |
+| `number.…_teinte_des_lumieres_jour` / `…_nuit` | En K (défaut 4000 / 2700, 0 = ne pas modifier) |
 
 Les réglages n'apparaissent que s'ils ont un sens pour la pièce (pas de seuil de luminosité sans capteur, etc.) et sont conservés au redémarrage.
 

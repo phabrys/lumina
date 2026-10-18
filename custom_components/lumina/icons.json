@@ -12,6 +12,12 @@
         "state": {
           "off": "mdi:fan-off"
         }
+      },
+      "forced_night": {
+        "default": "mdi:weather-night",
+        "state": {
+          "off": "mdi:weather-sunny"
+        }
       }
     },
     "number": {
@@ -44,6 +50,21 @@
       },
       "night_temperature_threshold": {
         "default": "mdi:thermometer"
+      },
+      "fan_min_speed": {
+        "default": "mdi:fan-speed-1"
+      },
+      "fan_speed_range": {
+        "default": "mdi:thermometer-chevron-up"
+      },
+      "light_warning_duration": {
+        "default": "mdi:lightbulb-alert-outline"
+      },
+      "day_color_temp": {
+        "default": "mdi:white-balance-sunny"
+      },
+      "night_color_temp": {
+        "default": "mdi:candle"
       }
     },
     "sensor": {
@@ -53,6 +74,9 @@
           "vacant": "mdi:home-outline",
           "override": "mdi:hand-back-right"
         }
+      },
+      "apparent_temperature": {
+        "default": "mdi:sun-thermometer-outline"
       }
     },
     "time": {

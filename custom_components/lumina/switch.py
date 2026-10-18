@@ -21,11 +21,13 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     controller = entry.runtime_data
-    async_add_entities(
+    entities: list[SwitchEntity] = [
         LuminaAutoSwitch(entry, kind)
         for kind in (KIND_LIGHTS, KIND_FANS)
         if controller.groups[kind].entity_ids
-    )
+    ]
+    entities.append(LuminaForcedNightSwitch(entry))
+    async_add_entities(entities)
 
 
 class LuminaAutoSwitch(LuminaEntity, SwitchEntity, RestoreEntity):
@@ -52,3 +54,26 @@ class LuminaAutoSwitch(LuminaEntity, SwitchEntity, RestoreEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         self._controller.set_enabled(self._kind, False)
+
+
+class LuminaForcedNightSwitch(LuminaEntity, SwitchEntity, RestoreEntity):
+    """Force le mode nuit jusqu'à la fin de la prochaine nuit."""
+
+    def __init__(self, entry: LuminaConfigEntry) -> None:
+        super().__init__(entry, "forced_night")
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state is not None and last_state.state == STATE_ON:
+            self._controller.set_forced_night(True, reevaluate=False)
+
+    @property
+    def is_on(self) -> bool:
+        return self._controller.forced_night
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        self._controller.set_forced_night(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        self._controller.set_forced_night(False)
