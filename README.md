@@ -21,6 +21,16 @@ stateDiagram-v2
 - **Ventilateurs** : allumés quand la pièce est occupée et que la température atteint le seuil, arrêtés 1 °C en dessous (hystérésis). Sans capteur de température, ils suivent simplement la présence.
 - **Contrôle manuel** : allumer ou éteindre une lumière ou un ventilateur à la main suspend l'automatisme de ce groupe pendant la durée réglée. La reprise manuelle est levée dès que la pièce se vide.
 
+### Mode nuit
+
+Chaque pièce a sa propre plage de nuit (22 h → 7 h par défaut) avec ses réglages dédiés :
+
+- **Luminosité des lumières** : 30 % la nuit, 100 % le jour par défaut. À **0 %**, les lumières ne s'allument plus automatiquement la nuit (pratique dans une chambre d'enfants).
+- **Délais d'extinction** propres à la nuit. Celui des ventilateurs est long par défaut (30 min), car un détecteur PIR ne voit pas une personne endormie immobile.
+- **Seuil de température** de nuit (26 °C par défaut).
+
+Mettre la même heure en début et en fin de nuit désactive le mode nuit pour la pièce. La période en cours (jour/nuit) apparaît en attribut du capteur d'état.
+
 Les lumières et ventilateurs peuvent aussi être des prises (`switch`), par exemple un ventilateur branché sur une prise Zigbee.
 
 ## Entités créées par pièce
@@ -35,6 +45,12 @@ Les lumières et ventilateurs peuvent aussi être des prises (`switch`), par exe
 | `number.…_delai_d_extinction_des_lumieres` | En secondes (défaut 120) |
 | `number.…_delai_d_arret_des_ventilateurs` | En secondes (défaut 300) |
 | `number.…_duree_du_controle_manuel` | En minutes (défaut 30, 0 pour désactiver) |
+| `number.…_luminosite_des_lumieres_jour` | En % (défaut 100) |
+| `time.…_debut_de_la_nuit` / `time.…_fin_de_la_nuit` | Plage de nuit (défaut 22:00 → 07:00) |
+| `number.…_luminosite_des_lumieres_nuit` | En % (défaut 30, 0 = pas d'allumage la nuit) |
+| `number.…_delai_d_extinction_des_lumieres_nuit` | En secondes (défaut 60) |
+| `number.…_delai_d_arret_des_ventilateurs_nuit` | En secondes (défaut 1800) |
+| `number.…_seuil_de_temperature_nuit` | En °C (défaut 26) |
 
 Les réglages n'apparaissent que s'ils ont un sens pour la pièce (pas de seuil de luminosité sans capteur, etc.) et sont conservés au redémarrage.
 

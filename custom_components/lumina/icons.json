@@ -29,6 +29,21 @@
       },
       "override_duration": {
         "default": "mdi:hand-back-right"
+      },
+      "day_brightness": {
+        "default": "mdi:brightness-6"
+      },
+      "night_brightness": {
+        "default": "mdi:weather-night"
+      },
+      "night_light_off_delay": {
+        "default": "mdi:timer-outline"
+      },
+      "night_fan_off_delay": {
+        "default": "mdi:timer-outline"
+      },
+      "night_temperature_threshold": {
+        "default": "mdi:thermometer"
       }
     },
     "sensor": {
@@ -38,6 +53,14 @@
           "vacant": "mdi:home-outline",
           "override": "mdi:hand-back-right"
         }
+      }
+    },
+    "time": {
+      "night_start": {
+        "default": "mdi:weather-sunset-down"
+      },
+      "night_end": {
+        "default": "mdi:weather-sunset-up"
       }
     }
   }

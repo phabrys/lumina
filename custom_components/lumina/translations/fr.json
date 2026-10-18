@@ -84,6 +84,21 @@
       },
       "override_duration": {
         "name": "Durée du contrôle manuel"
+      },
+      "day_brightness": {
+        "name": "Luminosité des lumières (jour)"
+      },
+      "night_brightness": {
+        "name": "Luminosité des lumières (nuit)"
+      },
+      "night_light_off_delay": {
+        "name": "Délai d'extinction des lumières (nuit)"
+      },
+      "night_fan_off_delay": {
+        "name": "Délai d'arrêt des ventilateurs (nuit)"
+      },
+      "night_temperature_threshold": {
+        "name": "Seuil de température (nuit)"
       }
     },
     "sensor": {
@@ -109,8 +124,23 @@
           },
           "fans_off_pending": {
             "name": "Arrêt des ventilateurs programmé"
+          },
+          "period": {
+            "name": "Période",
+            "state": {
+              "day": "Jour",
+              "night": "Nuit"
+            }
           }
         }
+      }
+    },
+    "time": {
+      "night_start": {
+        "name": "Début de la nuit"
+      },
+      "night_end": {
+        "name": "Fin de la nuit"
       }
     }
   }

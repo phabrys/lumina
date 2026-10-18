@@ -8,7 +8,12 @@ from homeassistant.core import HomeAssistant
 
 from .controller import RoomController
 
-PLATFORMS: list[Platform] = [Platform.NUMBER, Platform.SENSOR, Platform.SWITCH]
+PLATFORMS: list[Platform] = [
+    Platform.NUMBER,
+    Platform.SENSOR,
+    Platform.SWITCH,
+    Platform.TIME,
+]
 
 type LuminaConfigEntry = ConfigEntry[RoomController]
 
