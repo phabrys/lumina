@@ -16,14 +16,18 @@
           "lights": "Lights",
           "illuminance_sensor": "Illuminance sensor",
           "fans": "Fans",
-          "temperature_sensor": "Temperature sensor"
+          "temperature_sensor": "Temperature sensor",
+          "presence_hold": "Presence hold",
+          "humidity_sensor": "Humidity sensor"
         },
         "data_description": {
           "presence_sensors": "The room is occupied as soon as one of these sensors is on.",
           "lights": "Turned on on arrival when the room is dark.",
           "illuminance_sensor": "Without a sensor, the room is always considered dark.",
           "fans": "Turned on on arrival when the temperature exceeds the threshold.",
-          "temperature_sensor": "Without a sensor, fans follow presence only."
+          "temperature_sensor": "Without a sensor, fans follow presence only.",
+          "presence_hold": "TV, speaker, AC…: while one of these entities is active, the room stays occupied even if the sensors no longer detect anyone.",
+          "humidity_sensor": "With humidity, fans follow the apparent (feels-like) temperature instead of the measured one."
         }
       }
     },
@@ -44,14 +48,18 @@
           "lights": "Lights",
           "illuminance_sensor": "Illuminance sensor",
           "fans": "Fans",
-          "temperature_sensor": "Temperature sensor"
+          "temperature_sensor": "Temperature sensor",
+          "presence_hold": "Presence hold",
+          "humidity_sensor": "Humidity sensor"
         },
         "data_description": {
           "presence_sensors": "The room is occupied as soon as one of these sensors is on.",
           "lights": "Turned on on arrival when the room is dark.",
           "illuminance_sensor": "Without a sensor, the room is always considered dark.",
           "fans": "Turned on on arrival when the temperature exceeds the threshold.",
-          "temperature_sensor": "Without a sensor, fans follow presence only."
+          "temperature_sensor": "Without a sensor, fans follow presence only.",
+          "presence_hold": "TV, speaker, AC…: while one of these entities is active, the room stays occupied even if the sensors no longer detect anyone.",
+          "humidity_sensor": "With humidity, fans follow the apparent (feels-like) temperature instead of the measured one."
         }
       }
     },
@@ -67,6 +75,9 @@
       },
       "auto_fans": {
         "name": "Automatic fans"
+      },
+      "forced_night": {
+        "name": "Night now"
       }
     },
     "number": {
@@ -99,6 +110,21 @@
       },
       "night_temperature_threshold": {
         "name": "Temperature threshold (night)"
+      },
+      "fan_min_speed": {
+        "name": "Fans minimum speed"
+      },
+      "fan_speed_range": {
+        "name": "Range to full fan speed"
+      },
+      "light_warning_duration": {
+        "name": "Warning before lights off"
+      },
+      "day_color_temp": {
+        "name": "Lights color temperature (day)"
+      },
+      "night_color_temp": {
+        "name": "Lights color temperature (night)"
       }
     },
     "sensor": {
@@ -131,8 +157,23 @@
               "day": "Day",
               "night": "Night"
             }
+          },
+          "forced_night": {
+            "name": "Forced night"
+          },
+          "presence_hold_active": {
+            "name": "Presence hold active"
+          },
+          "effective_temperature": {
+            "name": "Temperature used"
+          },
+          "lights_warning": {
+            "name": "Lights dimmed before off"
           }
         }
+      },
+      "apparent_temperature": {
+        "name": "Apparent temperature"
       }
     },
     "time": {

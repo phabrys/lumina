@@ -21,7 +21,7 @@ class LuminaEntity(Entity):
         self._attr_translation_key = key
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
-            name=f"Lumina {entry.title}",
+            name="Lumina",
             manufacturer="Lumina",
             model="Contrôleur de pièce",
             entry_type=DeviceEntryType.SERVICE,

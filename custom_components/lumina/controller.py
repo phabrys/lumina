@@ -34,24 +34,33 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_FANS,
+    CONF_HUMIDITY,
     CONF_ILLUMINANCE,
     CONF_LIGHTS,
     CONF_PRESENCE,
+    CONF_PRESENCE_HOLD,
     CONF_TEMPERATURE,
     DEFAULT_SETTINGS,
     DEFAULT_TIMES,
+    DOMAIN,
+    HOLD_INACTIVE_STATES,
     KIND_FANS,
     KIND_LIGHTS,
+    PERIOD_DAY,
+    PERIOD_NIGHT,
     ROOM_OCCUPIED,
     ROOM_OVERRIDE,
     ROOM_VACANT,
-    PERIOD_DAY,
-    PERIOD_NIGHT,
     SETTING_DAY_BRIGHTNESS,
+    SETTING_DAY_COLOR_TEMP,
+    SETTING_FAN_MIN_SPEED,
     SETTING_FAN_OFF_DELAY,
+    SETTING_FAN_SPEED_RANGE,
     SETTING_LIGHT_OFF_DELAY,
+    SETTING_LIGHT_WARNING,
     SETTING_LUX_THRESHOLD,
     SETTING_NIGHT_BRIGHTNESS,
+    SETTING_NIGHT_COLOR_TEMP,
     SETTING_NIGHT_FAN_OFF_DELAY,
     SETTING_NIGHT_LIGHT_OFF_DELAY,
     SETTING_NIGHT_TEMP_THRESHOLD,
@@ -60,11 +69,14 @@ from .const import (
     TEMP_HYSTERESIS,
     TIME_NIGHT_END,
     TIME_NIGHT_START,
+    WARNING_BRIGHTNESS,
 )
+from .heat import apparent_temperature
 
 _LOGGER = logging.getLogger(__name__)
 
 _INVALID_STATES = {STATE_UNAVAILABLE, STATE_UNKNOWN}
+_EVENT_LOGBOOK_ENTRY = "logbook_entry"
 
 
 class ActuatorGroup:
@@ -85,6 +97,8 @@ class ActuatorGroup:
         self.override_until: datetime | None = None
         self.off_timer: CALLBACK_TYPE | None = None
         self.override_timer: CALLBACK_TYPE | None = None
+        # Lumières baissées en attendant l'extinction
+        self.warning = False
 
     @property
     def overridden(self) -> bool:
@@ -99,6 +113,7 @@ class ActuatorGroup:
         if self.off_timer is not None:
             self.off_timer()
             self.off_timer = None
+        self.warning = False
 
     def clear_override(self) -> None:
         if self.override_timer is not None:
@@ -112,18 +127,25 @@ class RoomController:
 
     Règles :
     - présence détectée → lumières allumées si la pièce est sombre,
-      ventilateurs allumés si la température dépasse le seuil ;
-    - pièce vide → extinction après un délai propre à chaque groupe ;
+      ventilateurs allumés si la température (ressentie) dépasse le seuil,
+      à une vitesse qui augmente avec la chaleur ;
+    - une entité de maintien (TV, enceinte…) active garde la pièce occupée
+      quand les détecteurs ne voient plus personne ;
+    - pièce vide → les lumières baissent, puis s'éteignent ; les
+      ventilateurs s'arrêtent après leur propre délai ;
     - action manuelle sur un actionneur → reprise manuelle du groupe
-      pendant une durée réglable, levée aussi quand la pièce se vide.
+      pendant une durée réglable, levée aussi quand la pièce se vide ;
+    - la nuit (plage horaire ou forcée), réglages dédiés.
     """
 
     def __init__(self, hass: HomeAssistant, name: str, config: Mapping[str, Any]) -> None:
         self.hass = hass
         self.name = name
         self.presence: list[str] = list(config.get(CONF_PRESENCE, []))
+        self.presence_hold: list[str] = list(config.get(CONF_PRESENCE_HOLD, []))
         self.illuminance: str | None = config.get(CONF_ILLUMINANCE)
         self.temperature: str | None = config.get(CONF_TEMPERATURE)
+        self.humidity: str | None = config.get(CONF_HUMIDITY)
         self.groups: dict[str, ActuatorGroup] = {
             KIND_LIGHTS: ActuatorGroup(
                 KIND_LIGHTS,
@@ -140,8 +162,12 @@ class RoomController:
         }
         self.settings: dict[str, float] = dict(DEFAULT_SETTINGS)
         self.times: dict[str, time] = dict(DEFAULT_TIMES)
+        self.forced_night = False
         self.period = PERIOD_DAY
+        self._natural_period = PERIOD_DAY
         self.occupied = False
+        # Entité du capteur d'état, à laquelle le journal rattache ses entrées
+        self.state_entity_id: str | None = None
         self._own_contexts: deque[str] = deque(maxlen=64)
         self._unsubs: list[CALLBACK_TYPE] = []
         self._listeners: list[Callable[[], None]] = []
@@ -153,32 +179,18 @@ class RoomController:
     @callback
     def async_start(self) -> None:
         """Abonne le contrôleur aux changements d'état utiles."""
-        self._unsubs.append(
-            async_track_state_change_event(self.hass, self.presence, self._on_presence)
-        )
-        if self.illuminance:
-            self._unsubs.append(
-                async_track_state_change_event(
-                    self.hass, [self.illuminance], self._on_environment
-                )
-            )
-        if self.temperature:
-            self._unsubs.append(
-                async_track_state_change_event(
-                    self.hass, [self.temperature], self._on_environment
-                )
-            )
+        self._track([*self.presence, *self.presence_hold], self._on_presence)
+        environment = [
+            e for e in (self.illuminance, self.temperature, self.humidity) if e
+        ]
+        if environment:
+            self._track(environment, self._on_environment)
         for group in self.groups.values():
             if group.entity_ids:
-                self._unsubs.append(
-                    async_track_state_change_event(
-                        self.hass,
-                        group.entity_ids,
-                        self._make_actuator_handler(group),
-                    )
-                )
+                self._track(group.entity_ids, self._make_actuator_handler(group))
         self.occupied = self._compute_occupied()
-        self.period = self._compute_period()
+        self._natural_period = self._compute_natural_period()
+        self.period = self._effective_period()
         self._unsubs.append(
             async_track_time_change(self.hass, self._on_minute, second=0)
         )
@@ -192,6 +204,12 @@ class RoomController:
         for group in self.groups.values():
             group.cancel_off_timer()
             group.clear_override()
+
+    def _track(self, entity_ids: list[str], action: Callable[..., Any]) -> None:
+        if entity_ids:
+            self._unsubs.append(
+                async_track_state_change_event(self.hass, entity_ids, action)
+            )
 
     async def _on_started(self, _hass: HomeAssistant) -> None:
         self.async_reevaluate()
@@ -218,27 +236,32 @@ class RoomController:
         if not enabled:
             group.cancel_off_timer()
             group.clear_override()
-        if reevaluate:
-            self.async_reevaluate()
-        else:
-            self._notify()
+        self._refresh(reevaluate)
 
     @callback
     def update_setting(self, key: str, value: float, *, reevaluate: bool = True) -> None:
         self.settings[key] = value
-        if reevaluate:
-            self.async_reevaluate()
-        else:
-            self._notify()
+        self._refresh(reevaluate)
 
     @callback
     def update_time(self, key: str, value: time, *, reevaluate: bool = True) -> None:
         self.times[key] = value
-        self.period = self._compute_period()
-        if reevaluate:
-            self.async_reevaluate()
-        else:
-            self._notify()
+        self._natural_period = self._compute_natural_period()
+        self.period = self._effective_period()
+        self._refresh(reevaluate)
+
+    @callback
+    def set_forced_night(self, forced: bool, *, reevaluate: bool = True) -> None:
+        if forced == self.forced_night:
+            return
+        self.forced_night = forced
+        previous = self.period
+        self.period = self._effective_period()
+        if reevaluate and self.period != previous:
+            self._log(
+                "passe en mode nuit (forcé)" if forced else "repasse en mode jour"
+            )
+        self._refresh(reevaluate)
 
     @property
     def is_night(self) -> bool:
@@ -251,15 +274,28 @@ class RoomController:
         return ROOM_OCCUPIED if self.occupied else ROOM_VACANT
 
     @property
+    def apparent_temperature(self) -> float | None:
+        """Température ressentie, ou None sans humidité exploitable."""
+        temp = self._numeric_state(self.temperature)
+        humidity = self._numeric_state(self.humidity)
+        if temp is None or humidity is None:
+            return None
+        return apparent_temperature(temp, humidity)
+
+    @property
     def attributes(self) -> dict[str, Any]:
         lights = self.groups[KIND_LIGHTS]
         fans = self.groups[KIND_FANS]
         return {
             "period": self.period,
+            "forced_night": self.forced_night,
             "occupied": self.occupied,
+            "presence_hold_active": self._hold_active(),
+            "effective_temperature": self._effective_temperature(),
             "lights_override_until": lights.override_until,
             "fans_override_until": fans.override_until,
             "lights_off_pending": lights.off_timer is not None,
+            "lights_warning": lights.warning,
             "fans_off_pending": fans.off_timer is not None,
         }
 
@@ -279,7 +315,13 @@ class RoomController:
                     self._schedule_off(group)
         self._notify()
 
-    def _compute_period(self) -> str:
+    def _refresh(self, reevaluate: bool) -> None:
+        if reevaluate:
+            self.async_reevaluate()
+        else:
+            self._notify()
+
+    def _compute_natural_period(self) -> str:
         """Jour ou nuit selon la plage réglée (début = fin : pas de nuit)."""
         start = self.times[TIME_NIGHT_START]
         end = self.times[TIME_NIGHT_END]
@@ -292,15 +334,28 @@ class RoomController:
             night = now >= start or now < end
         return PERIOD_NIGHT if night else PERIOD_DAY
 
+    def _effective_period(self) -> str:
+        return PERIOD_NIGHT if self.forced_night else self._natural_period
+
     def _setting(self, day_key: str, night_key: str) -> float:
         return self.settings[night_key if self.is_night else day_key]
 
     def _compute_occupied(self) -> bool:
-        for entity_id in self.presence:
-            state = self.hass.states.get(entity_id)
-            if state is not None and state.state == STATE_ON:
-                return True
-        return False
+        if any(
+            (state := self.hass.states.get(entity_id)) is not None
+            and state.state == STATE_ON
+            for entity_id in self.presence
+        ):
+            return True
+        # Le maintien prolonge une occupation, il ne la déclenche pas.
+        return self.occupied and self._hold_active()
+
+    def _hold_active(self) -> bool:
+        return any(
+            (state := self.hass.states.get(entity_id)) is not None
+            and state.state not in HOLD_INACTIVE_STATES
+            for entity_id in self.presence_hold
+        )
 
     def _numeric_state(self, entity_id: str | None) -> float | None:
         if entity_id is None:
@@ -312,6 +367,13 @@ class RoomController:
             return float(state.state)
         except ValueError:
             return None
+
+    def _effective_temperature(self) -> float | None:
+        """Température ressentie si l'humidité est connue, sinon mesurée."""
+        apparent = self.apparent_temperature
+        if apparent is not None:
+            return apparent
+        return self._numeric_state(self.temperature)
 
     def _is_dark(self) -> bool:
         lux = self._numeric_state(self.illuminance)
@@ -325,29 +387,81 @@ class RoomController:
             for entity_id in group.entity_ids
         )
 
+    def _reason(self) -> str:
+        """Contexte lisible des décisions, pour le journal."""
+        parts = ["nuit" if self.is_night else "jour"]
+        lux = self._numeric_state(self.illuminance)
+        if lux is not None:
+            parts.append(f"{lux:g} lx")
+        temp = self._effective_temperature()
+        if temp is not None:
+            label = "ressentis" if self.apparent_temperature is not None else ""
+            parts.append(f"{temp:g} °C {label}".strip())
+        return ", ".join(parts)
+
+    # --- Lumières -------------------------------------------------------
+
     def _evaluate_lights(self) -> None:
         group = self.groups[KIND_LIGHTS]
         if not group.active or not self.occupied:
             return
+        was_warning = group.warning
         group.cancel_off_timer()
         brightness = self._setting(SETTING_DAY_BRIGHTNESS, SETTING_NIGHT_BRIGHTNESS)
+        if was_warning and self._any_on(group):
+            # Quelqu'un est revenu pendant l'avertissement : on rétablit.
+            self._turn_on_lights(group, max(brightness, 1))
+            self._log(f"rétablit les lumières, présence de retour ({self._reason()})")
+            return
         if brightness <= 0:
             return  # pas d'allumage automatique sur cette période
         if self._is_dark() and not self._any_on(group):
-            self._call(group, SERVICE_TURN_ON, brightness_pct=brightness)
+            self._turn_on_lights(group, brightness)
+            self._log(f"allume les lumières à {brightness:g} % ({self._reason()})")
+
+    def _turn_on_lights(self, group: ActuatorGroup, brightness: float) -> None:
+        color_temp = self._setting(SETTING_DAY_COLOR_TEMP, SETTING_NIGHT_COLOR_TEMP)
+        context = self._new_context()
+        lights_ct: list[str] = []
+        lights_plain: list[str] = []
+        others: list[str] = []
+        for entity_id in group.entity_ids:
+            if not entity_id.startswith("light."):
+                others.append(entity_id)
+            elif color_temp > 0 and self._supports_color_temp(entity_id):
+                lights_ct.append(entity_id)
+            else:
+                lights_plain.append(entity_id)
+        data = {"brightness_pct": round(brightness)}
+        if lights_ct:
+            self._service(
+                "light", SERVICE_TURN_ON, lights_ct, context,
+                **data, color_temp_kelvin=round(color_temp),
+            )
+        if lights_plain:
+            self._service("light", SERVICE_TURN_ON, lights_plain, context, **data)
+        if others:
+            self._service("homeassistant", SERVICE_TURN_ON, others, context)
+
+    def _supports_color_temp(self, entity_id: str) -> bool:
+        state = self.hass.states.get(entity_id)
+        if state is None:
+            return False
+        return "color_temp" in (state.attributes.get("supported_color_modes") or [])
+
+    # --- Ventilateurs ---------------------------------------------------
 
     def _evaluate_fans(self) -> None:
         group = self.groups[KIND_FANS]
         if not group.active or not self.occupied:
             return
         group.cancel_off_timer()
+        threshold = self._setting(SETTING_TEMP_THRESHOLD, SETTING_NIGHT_TEMP_THRESHOLD)
+        temp: float | None = None
         if self.temperature is None:
             want_on: bool | None = True
         else:
-            temp = self._numeric_state(self.temperature)
-            threshold = self._setting(
-                SETTING_TEMP_THRESHOLD, SETTING_NIGHT_TEMP_THRESHOLD
-            )
+            temp = self._effective_temperature()
             if temp is None:
                 want_on = None  # capteur indisponible : on ne touche à rien
             elif temp >= threshold:
@@ -356,24 +470,105 @@ class RoomController:
                 want_on = False
             else:
                 want_on = None  # dans la bande d'hystérésis
+
         is_on = self._any_on(group)
+        percentage = self._fan_percentage(temp, threshold)
         if want_on is True and not is_on:
-            self._call(group, SERVICE_TURN_ON)
+            self._turn_on_fans(group, percentage)
+            speed = f" à {percentage} %" if percentage is not None else ""
+            self._log(f"allume les ventilateurs{speed} ({self._reason()})")
         elif want_on is False and is_on:
             self._call(group, SERVICE_TURN_OFF)
+            self._log(f"arrête les ventilateurs, température revenue ({self._reason()})")
+        elif is_on and want_on is not False and percentage is not None:
+            self._adjust_fan_speed(group, percentage)
+
+    def _fan_percentage(self, temp: float | None, threshold: float) -> int | None:
+        """Vitesse proportionnelle à l'écart au seuil, None sans régulation."""
+        min_speed = self.settings[SETTING_FAN_MIN_SPEED]
+        if temp is None or min_speed <= 0:
+            return None
+        span = max(self.settings[SETTING_FAN_SPEED_RANGE], 0.1)
+        ratio = min(max((temp - threshold) / span, 0.0), 1.0)
+        return round(min_speed + (100 - min_speed) * ratio)
+
+    def _turn_on_fans(self, group: ActuatorGroup, percentage: int | None) -> None:
+        context = self._new_context()
+        fans = [e for e in group.entity_ids if e.startswith("fan.")]
+        others = [e for e in group.entity_ids if not e.startswith("fan.")]
+        if fans and percentage is not None:
+            self._service("fan", SERVICE_TURN_ON, fans, context, percentage=percentage)
+        elif fans:
+            others = group.entity_ids
+        if others:
+            self._service("homeassistant", SERVICE_TURN_ON, others, context)
+
+    def _adjust_fan_speed(self, group: ActuatorGroup, percentage: int) -> None:
+        to_adjust: list[str] = []
+        for entity_id in group.entity_ids:
+            state = self.hass.states.get(entity_id)
+            if (
+                not entity_id.startswith("fan.")
+                or state is None
+                or state.state != STATE_ON
+            ):
+                continue
+            current = state.attributes.get("percentage")
+            step = state.attributes.get("percentage_step") or 1
+            if current is None or abs(current - percentage) >= step / 2:
+                to_adjust.append(entity_id)
+        if to_adjust:
+            self._service(
+                "fan", "set_percentage", to_adjust, self._new_context(),
+                percentage=percentage,
+            )
+            self._log(f"règle les ventilateurs à {percentage} % ({self._reason()})")
+
+    # --- Extinction -----------------------------------------------------
 
     def _schedule_off(self, group: ActuatorGroup) -> None:
         group.cancel_off_timer()
         delay = self._setting(group.off_delay_key, group.night_off_delay_key)
 
         @callback
-        def _turn_off(_now: datetime) -> None:
+        def _delay_elapsed(_now: datetime) -> None:
             group.off_timer = None
-            if not self.occupied and group.active and self._any_on(group):
-                self._call(group, SERVICE_TURN_OFF)
+            if self.occupied or not group.active or not self._any_on(group):
+                self._notify()
+                return
+            warning = self.settings[SETTING_LIGHT_WARNING]
+            dimmable = [
+                e for e in group.entity_ids
+                if e.startswith("light.")
+                and (state := self.hass.states.get(e)) is not None
+                and state.state == STATE_ON
+            ]
+            if group.kind == KIND_LIGHTS and warning > 0 and dimmable:
+                self._service(
+                    "light", SERVICE_TURN_ON, dimmable, self._new_context(),
+                    brightness_pct=WARNING_BRIGHTNESS,
+                )
+                group.warning = True
+                group.off_timer = async_call_later(self.hass, warning, _final_off)
+                self._log("baisse les lumières avant extinction")
+            else:
+                self._turn_off(group)
             self._notify()
 
-        group.off_timer = async_call_later(self.hass, delay, _turn_off)
+        @callback
+        def _final_off(_now: datetime) -> None:
+            group.off_timer = None
+            group.warning = False
+            if not self.occupied and group.active and self._any_on(group):
+                self._turn_off(group)
+            self._notify()
+
+        group.off_timer = async_call_later(self.hass, delay, _delay_elapsed)
+
+    def _turn_off(self, group: ActuatorGroup) -> None:
+        self._call(group, SERVICE_TURN_OFF)
+        label = "les lumières" if group.kind == KIND_LIGHTS else "les ventilateurs"
+        self._log(f"éteint {label}, pièce vide")
 
     # ------------------------------------------------------------------
     # Gestion des événements
@@ -383,6 +578,7 @@ class RoomController:
     def _on_presence(self, event: Event[EventStateChangedData]) -> None:
         occupied = self._compute_occupied()
         if occupied == self.occupied:
+            self._notify()  # l'état du maintien a pu changer
             return
         self.occupied = occupied
         _LOGGER.debug("%s : pièce %s", self.name, "occupée" if occupied else "vide")
@@ -394,10 +590,19 @@ class RoomController:
 
     @callback
     def _on_minute(self, _now: datetime) -> None:
-        period = self._compute_period()
+        natural = self._compute_natural_period()
+        if (
+            self.forced_night
+            and self._natural_period == PERIOD_NIGHT
+            and natural == PERIOD_DAY
+        ):
+            # Fin de la nuit : le forçage s'arrête de lui-même.
+            self.forced_night = False
+        self._natural_period = natural
+        period = self._effective_period()
         if period != self.period:
             self.period = period
-            _LOGGER.debug("%s : passage en période %s", self.name, period)
+            self._log("passe en mode nuit" if self.is_night else "passe en mode jour")
             self.async_reevaluate()
 
     @callback
@@ -405,7 +610,7 @@ class RoomController:
         if self.occupied:
             self._evaluate_lights()
             self._evaluate_fans()
-            self._notify()
+        self._notify()
 
     def _make_actuator_handler(
         self, group: ActuatorGroup
@@ -419,10 +624,19 @@ class RoomController:
                 or new_state is None
                 or old_state.state in _INVALID_STATES
                 or new_state.state in _INVALID_STATES
-                or old_state.state == new_state.state
             ):
                 return
-            if new_state.context.id in self._own_contexts:
+            changed = old_state.state != new_state.state
+            # Un changement de vitesse à la main compte aussi comme reprise.
+            if (
+                not changed
+                and group.kind == KIND_FANS
+                and new_state.state == STATE_ON
+                and old_state.attributes.get("percentage")
+                != new_state.attributes.get("percentage")
+            ):
+                changed = True
+            if not changed or new_state.context.id in self._own_contexts:
                 return
             self._start_override(group)
 
@@ -436,12 +650,14 @@ class RoomController:
         group.cancel_off_timer()
         duration = timedelta(minutes=minutes)
         group.override_until = dt_util.utcnow() + duration
-        _LOGGER.debug("%s : reprise manuelle des %s", self.name, group.kind)
+        label = "lumières" if group.kind == KIND_LIGHTS else "ventilateurs"
+        self._log(f"laisse la main sur les {label} pendant {minutes:g} min")
 
         @callback
         def _end_override(_now: datetime) -> None:
             group.override_timer = None
             group.override_until = None
+            self._log(f"reprend la gestion des {label}")
             self.async_reevaluate()
 
         group.override_timer = async_call_later(self.hass, duration, _end_override)
@@ -451,23 +667,14 @@ class RoomController:
     # Utilitaires
     # ------------------------------------------------------------------
 
-    def _call(
-        self, group: ActuatorGroup, service: str, brightness_pct: float | None = None
-    ) -> None:
+    def _new_context(self) -> Context:
         context = Context()
         self._own_contexts.append(context.id)
-        _LOGGER.debug("%s : %s %s", self.name, service, group.entity_ids)
-        entity_ids = group.entity_ids
-        if brightness_pct is not None:
-            # Les vraies lumières reçoivent la luminosité, les prises un simple allumage.
-            lights = [e for e in entity_ids if e.startswith("light.")]
-            entity_ids = [e for e in entity_ids if not e.startswith("light.")]
-            if lights:
-                self._service("light", service, lights, context,
-                              brightness_pct=round(brightness_pct))
-        if entity_ids:
-            # homeassistant.turn_on/off accepte des domaines mixtes (light, fan, switch).
-            self._service("homeassistant", service, entity_ids, context)
+        return context
+
+    def _call(self, group: ActuatorGroup, service: str) -> None:
+        # homeassistant.turn_on/off accepte des domaines mixtes (light, fan, switch).
+        self._service("homeassistant", service, group.entity_ids, self._new_context())
 
     def _service(
         self,
@@ -477,6 +684,7 @@ class RoomController:
         context: Context,
         **data: Any,
     ) -> None:
+        _LOGGER.debug("%s : %s.%s %s %s", self.name, domain, service, entity_ids, data)
         self.hass.async_create_task(
             self.hass.services.async_call(
                 domain,
@@ -486,6 +694,18 @@ class RoomController:
                 context=context,
             )
         )
+
+    def _log(self, message: str) -> None:
+        """Ajoute une entrée au Journal de Home Assistant."""
+        _LOGGER.debug("%s : %s", self.name, message)
+        data: dict[str, Any] = {
+            "name": f"Lumina {self.name}",
+            "message": message,
+            "domain": DOMAIN,
+        }
+        if self.state_entity_id:
+            data["entity_id"] = self.state_entity_id
+        self.hass.bus.async_fire(_EVENT_LOGBOOK_ENTRY, data)
 
     @callback
     def _notify(self) -> None:

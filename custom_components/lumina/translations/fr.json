@@ -16,14 +16,18 @@
           "lights": "Lumières",
           "illuminance_sensor": "Capteur de luminosité",
           "fans": "Ventilateurs",
-          "temperature_sensor": "Capteur de température"
+          "temperature_sensor": "Capteur de température",
+          "presence_hold": "Maintien de présence",
+          "humidity_sensor": "Capteur d'humidité"
         },
         "data_description": {
           "presence_sensors": "La pièce est occupée dès qu'un de ces capteurs est actif.",
           "lights": "Allumées à l'arrivée si la pièce est sombre.",
           "illuminance_sensor": "Sans capteur, la pièce est toujours considérée sombre.",
           "fans": "Allumés à l'arrivée si la température dépasse le seuil.",
-          "temperature_sensor": "Sans capteur, les ventilateurs suivent uniquement la présence."
+          "temperature_sensor": "Sans capteur, les ventilateurs suivent uniquement la présence.",
+          "presence_hold": "TV, enceinte, clim… : tant qu'une de ces entités est active, la pièce reste occupée même si les détecteurs ne voient plus personne.",
+          "humidity_sensor": "Avec l'humidité, les ventilateurs suivent la température ressentie plutôt que la température mesurée."
         }
       }
     },
@@ -44,14 +48,18 @@
           "lights": "Lumières",
           "illuminance_sensor": "Capteur de luminosité",
           "fans": "Ventilateurs",
-          "temperature_sensor": "Capteur de température"
+          "temperature_sensor": "Capteur de température",
+          "presence_hold": "Maintien de présence",
+          "humidity_sensor": "Capteur d'humidité"
         },
         "data_description": {
           "presence_sensors": "La pièce est occupée dès qu'un de ces capteurs est actif.",
           "lights": "Allumées à l'arrivée si la pièce est sombre.",
           "illuminance_sensor": "Sans capteur, la pièce est toujours considérée sombre.",
           "fans": "Allumés à l'arrivée si la température dépasse le seuil.",
-          "temperature_sensor": "Sans capteur, les ventilateurs suivent uniquement la présence."
+          "temperature_sensor": "Sans capteur, les ventilateurs suivent uniquement la présence.",
+          "presence_hold": "TV, enceinte, clim… : tant qu'une de ces entités est active, la pièce reste occupée même si les détecteurs ne voient plus personne.",
+          "humidity_sensor": "Avec l'humidité, les ventilateurs suivent la température ressentie plutôt que la température mesurée."
         }
       }
     },
@@ -67,6 +75,9 @@
       },
       "auto_fans": {
         "name": "Gestion auto des ventilateurs"
+      },
+      "forced_night": {
+        "name": "Nuit maintenant"
       }
     },
     "number": {
@@ -99,6 +110,21 @@
       },
       "night_temperature_threshold": {
         "name": "Seuil de température (nuit)"
+      },
+      "fan_min_speed": {
+        "name": "Vitesse minimale des ventilateurs"
+      },
+      "fan_speed_range": {
+        "name": "Écart pour la vitesse maximale"
+      },
+      "light_warning_duration": {
+        "name": "Avertissement avant extinction"
+      },
+      "day_color_temp": {
+        "name": "Teinte des lumières (jour)"
+      },
+      "night_color_temp": {
+        "name": "Teinte des lumières (nuit)"
       }
     },
     "sensor": {
@@ -131,8 +157,23 @@
               "day": "Jour",
               "night": "Nuit"
             }
+          },
+          "forced_night": {
+            "name": "Nuit forcée"
+          },
+          "presence_hold_active": {
+            "name": "Maintien de présence actif"
+          },
+          "effective_temperature": {
+            "name": "Température prise en compte"
+          },
+          "lights_warning": {
+            "name": "Lumières baissées avant extinction"
           }
         }
+      },
+      "apparent_temperature": {
+        "name": "Température ressentie"
       }
     },
     "time": {

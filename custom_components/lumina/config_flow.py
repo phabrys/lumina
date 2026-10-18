@@ -23,14 +23,17 @@ from homeassistant.helpers import (
 from .const import (
     CONF_AREA,
     CONF_FANS,
+    CONF_HUMIDITY,
     CONF_ILLUMINANCE,
     CONF_LIGHTS,
     CONF_PRESENCE,
+    CONF_PRESENCE_HOLD,
     CONF_TEMPERATURE,
     DOMAIN,
 )
 
 PRESENCE_DEVICE_CLASSES = ["motion", "occupancy", "presence"]
+HOLD_DOMAINS = ["media_player", "binary_sensor", "switch", "input_boolean", "remote", "climate"]
 
 
 def _area_entities(hass: HomeAssistant, area_id: str) -> list[er.RegistryEntry]:
@@ -53,10 +56,12 @@ def _area_entities(hass: HomeAssistant, area_id: str) -> list[er.RegistryEntry]:
 def _discover(hass: HomeAssistant, area_id: str) -> dict[str, Any]:
     """Propose des entités par défaut à partir du contenu de la pièce."""
     presence: list[str] = []
+    hold: list[str] = []
     lights: list[str] = []
     fans: list[str] = []
     illuminance: str | None = None
     temperature: str | None = None
+    humidity: str | None = None
 
     for entry in _area_entities(hass, area_id):
         device_class = entry.device_class or entry.original_device_class
@@ -70,9 +75,14 @@ def _discover(hass: HomeAssistant, area_id: str) -> dict[str, Any]:
             illuminance = illuminance or entry.entity_id
         elif entry.domain == "sensor" and device_class == "temperature":
             temperature = temperature or entry.entity_id
+        elif entry.domain == "sensor" and device_class == "humidity":
+            humidity = humidity or entry.entity_id
+        elif entry.domain == "media_player":
+            hold.append(entry.entity_id)
 
     defaults: dict[str, Any] = {
         CONF_PRESENCE: presence,
+        CONF_PRESENCE_HOLD: hold,
         CONF_LIGHTS: lights,
         CONF_FANS: fans,
     }
@@ -80,6 +90,8 @@ def _discover(hass: HomeAssistant, area_id: str) -> dict[str, Any]:
         defaults[CONF_ILLUMINANCE] = illuminance
     if temperature:
         defaults[CONF_TEMPERATURE] = temperature
+    if humidity:
+        defaults[CONF_HUMIDITY] = humidity
     return defaults
 
 
@@ -102,6 +114,11 @@ def _entities_schema(defaults: dict[str, Any]) -> vol.Schema:
                         ],
                         multiple=True,
                     )
+                )
+            ),
+            vol.Optional(CONF_PRESENCE_HOLD, description=suggested(CONF_PRESENCE_HOLD)): (
+                selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain=HOLD_DOMAINS, multiple=True)
                 )
             ),
             vol.Optional(CONF_LIGHTS, description=suggested(CONF_LIGHTS)): (
@@ -129,6 +146,13 @@ def _entities_schema(defaults: dict[str, Any]) -> vol.Schema:
                 selector.EntitySelector(
                     selector.EntitySelectorConfig(
                         domain="sensor", device_class="temperature"
+                    )
+                )
+            ),
+            vol.Optional(CONF_HUMIDITY, description=suggested(CONF_HUMIDITY)): (
+                selector.EntitySelector(
+                    selector.EntitySelectorConfig(
+                        domain="sensor", device_class="humidity"
                     )
                 )
             ),
