@@ -30,4 +30,15 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install -r requirements_test.txt
-      - run: pytest
+      - name: pytest
+        shell: bash
+        run: |
+          set +e
+          pytest -rfE --tb=short 2>&1 | tee pytest.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            # Résumé des échecs en annotation (lisible sans télécharger les logs)
+            msg=$(grep -E "^(FAILED|ERROR)|Error|assert" pytest.log | tail -40 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')
+            echo "::error title=pytest::${msg}"
+          fi
+          exit $status
