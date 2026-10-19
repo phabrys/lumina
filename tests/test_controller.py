@@ -435,3 +435,147 @@ async def test_logbook_explains_actions(hass: HomeAssistant) -> None:
     assert data["message"].startswith("allume les lumières")
     assert "10 lx" in data["message"]
     assert data["entity_id"] == _eid(hass, entry, "sensor", "room_state")
+
+
+# ----------------------------------------------------------------------
+# v0.4.0 : lumière du jour, plusieurs lumières, journal, nuit forcée
+# ----------------------------------------------------------------------
+
+LIGHT2 = "light.salon_lampadaire"
+
+
+async def _set_number(hass, entry, key, value) -> None:
+    await hass.services.async_call(
+        "number",
+        "set_value",
+        {"entity_id": _eid(hass, entry, "number", key), "value": value},
+        blocking=True,
+    )
+
+
+async def test_daylight_turns_lights_off_then_relocks(hass: HomeAssistant) -> None:
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    turn_off = async_mock_service(hass, "homeassistant", "turn_off")
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LUX, "10")
+    hass.states.async_set(LIGHT, "off")
+    entry = await _setup(hass)
+    await _set_number(hass, entry, "daylight_off_lux", 300)
+
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert len(turn_on) == 1
+
+    # Le jour se lève : 400 lx pendant 5 min → extinction.
+    hass.states.async_set(LIGHT, "on", context=turn_on[0].context)
+    hass.states.async_set(LUX, "400")
+    await hass.async_block_till_done()
+    assert turn_off == []
+    await _later(hass, seconds=301)
+    assert _entities(turn_off) == [[LIGHT]]
+    assert _room(hass, entry).attributes["daylight_locked"] is True
+
+    # Lampe éteinte : la mesure retombe, mais pas de rallumage immédiat.
+    hass.states.async_set(LIGHT, "off", context=turn_off[0].context)
+    hass.states.async_set(LUX, "20")
+    await hass.async_block_till_done()
+    assert len(turn_on) == 1
+
+    # Sombre pendant 10 min (le soir) : l'allumage automatique reprend.
+    await _later(hass, seconds=301 + 601)
+    assert len(turn_on) == 2
+    assert _room(hass, entry).attributes["daylight_locked"] is False
+
+
+async def test_lights_mode_all_turns_on_remaining(hass: HomeAssistant) -> None:
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LUX, "10")
+    hass.states.async_set(LIGHT, "on")
+    hass.states.async_set(LIGHT2, "off")
+    await _setup(hass, **{CONF_LIGHTS: [LIGHT, LIGHT2]})
+
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert _entities(turn_on) == [[LIGHT2]]
+
+
+async def test_lights_mode_any_leaves_others(hass: HomeAssistant) -> None:
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LUX, "10")
+    hass.states.async_set(LIGHT, "on")
+    hass.states.async_set(LIGHT2, "off")
+    entry = await _setup(hass, **{CONF_LIGHTS: [LIGHT, LIGHT2]})
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": _eid(hass, entry, "select", "lights_mode"), "option": "any"},
+        blocking=True,
+    )
+
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert turn_on == []
+
+
+async def test_small_fan_speed_changes_are_ignored(hass: HomeAssistant) -> None:
+    set_pct = async_mock_service(hass, "fan", "set_percentage")
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LUX, "500")
+    hass.states.async_set(LIGHT, "off")
+    hass.states.async_set(TEMP, "28")
+    hass.states.async_set(FAN, "on", {"percentage": 55, "percentage_step": 1})
+    await _setup(hass, **{CONF_FANS: [FAN], CONF_TEMPERATURE: TEMP})
+
+    hass.states.async_set(TEMP, "28.3")  # ≈ 62 % visés, écart < 10 points
+    await hass.async_block_till_done()
+    assert set_pct == []
+
+
+async def test_fan_speed_log_is_throttled(hass: HomeAssistant) -> None:
+    set_pct = async_mock_service(hass, "fan", "set_percentage")
+    entries = async_capture_events(hass, "logbook_entry")
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LUX, "500")
+    hass.states.async_set(LIGHT, "off")
+    hass.states.async_set(TEMP, "28")
+    hass.states.async_set(FAN, "on", {"percentage": 55, "percentage_step": 1})
+    await _setup(hass, **{CONF_FANS: [FAN], CONF_TEMPERATURE: TEMP})
+
+    hass.states.async_set(TEMP, "30")
+    await hass.async_block_till_done()
+    hass.states.async_set(FAN, "on", {"percentage": 100}, context=set_pct[0].context)
+    hass.states.async_set(TEMP, "28")
+    await hass.async_block_till_done()
+
+    assert len(set_pct) == 2  # la vitesse suit bien
+    speed_logs = [e for e in entries if e.data["message"].startswith("règle")]
+    assert len(speed_logs) == 1  # mais une seule entrée de journal
+
+
+async def test_forced_night_ends_without_night_window(hass: HomeAssistant, daytime) -> None:
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LIGHT, "off")
+    entry = await _setup(hass)
+    # Pas de plage de nuit : début = fin = 07:00.
+    await hass.services.async_call(
+        "time",
+        "set_value",
+        {"entity_id": _eid(hass, entry, "time", "night_start"), "time": "07:00:00"},
+        blocking=True,
+    )
+    await hass.services.async_call(
+        "switch",
+        "turn_on",
+        {"entity_id": _eid(hass, entry, "switch", "forced_night")},
+        blocking=True,
+    )
+    assert _room(hass, entry).attributes["period"] == "night"
+
+    # Le lendemain à 07:01, le forçage s'arrête de lui-même.
+    daytime.move_to("2026-10-19T07:01:00-07:00")
+    async_fire_time_changed(hass, dt_util.utcnow())
+    await hass.async_block_till_done()
+    assert _room(hass, entry).attributes["period"] == "day"
+    assert hass.states.get(_eid(hass, entry, "switch", "forced_night")).state == "off"

@@ -31,7 +31,7 @@ Chaque pièce a sa propre plage de nuit (22 h → 7 h par défaut) avec ses rég
 
 Mettre la même heure en début et en fin de nuit désactive le mode nuit pour la pièce. La période en cours (jour/nuit) apparaît en attribut du capteur d'état.
 
-Le switch **Nuit maintenant** force le mode nuit tout de suite ; il se désactive seul à la fin de la prochaine nuit.
+Le switch **Nuit maintenant** force le mode nuit tout de suite ; il se désactive seul à la prochaine heure de fin de nuit, même si la pièce n'a pas de plage de nuit.
 
 ### Confort
 
@@ -40,7 +40,9 @@ Le switch **Nuit maintenant** force le mode nuit tout de suite ; il se désactiv
 - **Vitesse progressive** : les ventilateurs démarrent à la vitesse minimale (33 %) au seuil, puis montent jusqu'à 100 % sur l'écart réglé (3 °C). Une vitesse minimale à 0 revient au simple marche/arrêt. Changer la vitesse à la main compte comme une reprise manuelle.
 - **Avertissement avant extinction** : les lumières baissent à 20 % pendant 15 s avant de s'éteindre. Un mouvement pendant ce temps rétablit la lumière.
 - **Teinte** : 4000 K le jour, 2700 K la nuit, pour les lumières à blanc réglable (0 = ne pas modifier).
-- **Journal** : chaque décision apparaît dans le Journal avec sa raison, par exemple « allume les lumières à 30 % (nuit, 12 lx) ».
+- **Journal** : chaque décision apparaît dans le Journal avec sa raison, par exemple « allume les lumières à 30 % (nuit, 12 lx) ». Les ajustements de vitesse fréquents sont regroupés (une entrée toutes les 10 min au plus).
+- **Lumière du jour** : avec un seuil d'extinction réglé, les lumières s'éteignent quand le capteur mesure au moins cette valeur pendant 5 min. Règle-le **au-dessus** de ce que mesure le capteur lampes allumées, sinon la lampe s'éteindrait d'elle-même. Après une telle extinction, l'allumage automatique ne reprend qu'après 10 min sous le seuil d'allumage, ou quand la pièce se vide.
+- **Plusieurs lumières** : par défaut, Lumina allume toutes les lumières éteintes de la pièce ; l'option « Seulement si aucune n'est allumée » respecte une lampe déjà allumée.
 
 Les lumières et ventilateurs peuvent aussi être des prises (`switch`), par exemple un ventilateur branché sur une prise Zigbee.
 
@@ -68,6 +70,8 @@ Les lumières et ventilateurs peuvent aussi être des prises (`switch`), par exe
 | `number.…_ecart_pour_la_vitesse_maximale` | En °C (défaut 3) |
 | `number.…_avertissement_avant_extinction` | En secondes (défaut 15, 0 = extinction directe) |
 | `number.…_teinte_des_lumieres_jour` / `…_nuit` | En K (défaut 4000 / 2700, 0 = ne pas modifier) |
+| `number.…_extinction_a_la_lumiere_du_jour` | En lx (défaut 0 = désactivé) |
+| `select.…_lumieres_a_allumer` | Toutes / Seulement si aucune n'est allumée |
 
 Les réglages n'apparaissent que s'ils ont un sens pour la pièce (pas de seuil de luminosité sans capteur, etc.) et sont conservés au redémarrage.
 
@@ -88,6 +92,10 @@ Copier `custom_components/lumina` dans le dossier `custom_components` de la conf
 **Paramètres → Appareils et services → Ajouter une intégration → Lumina**, puis choisir la pièce. Les capteurs de présence, lumières, ventilateurs et capteurs de luminosité/température rattachés à la pièce sont proposés automatiquement. Les entités se modifient ensuite via **Configurer**.
 
 Pour que la détection automatique fonctionne, chaque entité (ou son appareil) doit être rattachée à la bonne pièce dans Home Assistant.
+
+## Diagnostic
+
+**Paramètres → Appareils et services → Lumina → ⋮ → Télécharger les diagnostics** fournit un fichier JSON avec la configuration de la pièce, les réglages, l'état interne et l'état des entités suivies.
 
 ## Développement
 
