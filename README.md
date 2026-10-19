@@ -97,6 +97,10 @@ Pour que la détection automatique fonctionne, chaque entité (ou son appareil) 
 
 **Paramètres → Appareils et services → Lumina → ⋮ → Télécharger les diagnostics** fournit un fichier JSON avec la configuration de la pièce, les réglages, l'état interne et l'état des entités suivies.
 
+## Versions
+
+Les versions sont publiées automatiquement : un changement du numéro de version dans `manifest.json` sur `main` crée le tag et la release GitHub à partir du `CHANGELOG.md`, et HACS propose la mise à jour.
+
 ## Développement
 
 ```bash
