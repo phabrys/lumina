@@ -1,6 +1,9 @@
 """Tests de la migration de configuration et des diagnostics."""
 
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_mock_service,
+)
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
@@ -50,6 +53,7 @@ async def test_future_version_is_refused(hass: HomeAssistant) -> None:
 
 
 async def test_diagnostics(hass: HomeAssistant) -> None:
+    async_mock_service(hass, "light", "turn_on")  # pièce occupée et sombre
     hass.states.async_set("binary_sensor.pir_bureau", "on")
     hass.states.async_set("light.bureau", "off", {"brightness": None})
     entry = MockConfigEntry(
