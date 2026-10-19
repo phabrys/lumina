@@ -77,7 +77,12 @@
         "name": "Gestion auto des ventilateurs"
       },
       "forced_night": {
-        "name": "Nuit maintenant"
+        "name": "Nuit maintenant",
+        "state_attributes": {
+          "until": {
+            "name": "Jusqu'à"
+          }
+        }
       }
     },
     "number": {
@@ -125,6 +130,9 @@
       },
       "night_color_temp": {
         "name": "Teinte des lumières (nuit)"
+      },
+      "daylight_off_lux": {
+        "name": "Extinction à la lumière du jour"
       }
     },
     "sensor": {
@@ -169,6 +177,15 @@
           },
           "lights_warning": {
             "name": "Lumières baissées avant extinction"
+          },
+          "forced_night_until": {
+            "name": "Nuit forcée jusqu'à"
+          },
+          "lights_mode": {
+            "name": "Lumières à allumer"
+          },
+          "daylight_locked": {
+            "name": "Allumage suspendu (lumière du jour)"
           }
         }
       },
@@ -182,6 +199,15 @@
       },
       "night_end": {
         "name": "Fin de la nuit"
+      }
+    },
+    "select": {
+      "lights_mode": {
+        "name": "Lumières à allumer",
+        "state": {
+          "all": "Toutes",
+          "any": "Seulement si aucune n'est allumée"
+        }
       }
     }
   }

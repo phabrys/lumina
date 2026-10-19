@@ -9,6 +9,7 @@ from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.util import dt as dt_util
 
 from . import LuminaConfigEntry
 from .const import KIND_FANS, KIND_LIGHTS
@@ -66,11 +67,17 @@ class LuminaForcedNightSwitch(LuminaEntity, SwitchEntity, RestoreEntity):
         await super().async_added_to_hass()
         last_state = await self.async_get_last_state()
         if last_state is not None and last_state.state == STATE_ON:
-            self._controller.set_forced_night(True, reevaluate=False)
+            until = last_state.attributes.get("until")
+            parsed = dt_util.parse_datetime(until) if isinstance(until, str) else None
+            self._controller.set_forced_night(True, until=parsed, reevaluate=False)
 
     @property
     def is_on(self) -> bool:
         return self._controller.forced_night
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {"until": self._controller.forced_night_until}
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         self._controller.set_forced_night(True)

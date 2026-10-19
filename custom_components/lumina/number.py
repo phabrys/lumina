@@ -25,6 +25,7 @@ from .const import (
     KIND_LIGHTS,
     SETTING_DAY_BRIGHTNESS,
     SETTING_DAY_COLOR_TEMP,
+    SETTING_DAYLIGHT_OFF_LUX,
     SETTING_FAN_MIN_SPEED,
     SETTING_FAN_OFF_DELAY,
     SETTING_FAN_SPEED_RANGE,
@@ -160,6 +161,17 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
         requires="temperature",
+    ),
+    LuminaNumberDescription(
+        key=SETTING_DAYLIGHT_OFF_LUX,
+        translation_key=SETTING_DAYLIGHT_OFF_LUX,
+        native_min_value=0,
+        native_max_value=5000,
+        native_step=10,
+        native_unit_of_measurement=LIGHT_LUX,
+        mode=NumberMode.BOX,
+        entity_category=EntityCategory.CONFIG,
+        requires="illuminance",
     ),
     # --- Confort ---
     LuminaNumberDescription(

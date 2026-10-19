@@ -77,7 +77,12 @@
         "name": "Automatic fans"
       },
       "forced_night": {
-        "name": "Night now"
+        "name": "Night now",
+        "state_attributes": {
+          "until": {
+            "name": "Until"
+          }
+        }
       }
     },
     "number": {
@@ -125,6 +130,9 @@
       },
       "night_color_temp": {
         "name": "Lights color temperature (night)"
+      },
+      "daylight_off_lux": {
+        "name": "Daylight lights-off level"
       }
     },
     "sensor": {
@@ -169,6 +177,15 @@
           },
           "lights_warning": {
             "name": "Lights dimmed before off"
+          },
+          "forced_night_until": {
+            "name": "Forced night until"
+          },
+          "lights_mode": {
+            "name": "Lights to turn on"
+          },
+          "daylight_locked": {
+            "name": "Turn-on paused (daylight)"
           }
         }
       },
@@ -182,6 +199,15 @@
       },
       "night_end": {
         "name": "Night end"
+      }
+    },
+    "select": {
+      "lights_mode": {
+        "name": "Lights to turn on",
+        "state": {
+          "all": "All",
+          "any": "Only if none is on"
+        }
       }
     }
   }

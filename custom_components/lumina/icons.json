@@ -65,6 +65,9 @@
       },
       "night_color_temp": {
         "default": "mdi:candle"
+      },
+      "daylight_off_lux": {
+        "default": "mdi:weather-sunny-alert"
       }
     },
     "sensor": {
@@ -85,6 +88,14 @@
       },
       "night_end": {
         "default": "mdi:weather-sunset-up"
+      }
+    },
+    "select": {
+      "lights_mode": {
+        "default": "mdi:lightbulb-group",
+        "state": {
+          "any": "mdi:lightbulb-outline"
+        }
       }
     }
   }

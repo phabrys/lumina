@@ -173,6 +173,8 @@ class LuminaConfigFlow(ConfigFlow, domain=DOMAIN):
     """Ajout d'une pièce."""
 
     VERSION = 1
+    # 1.2 : listes normalisées, maintien de présence et humidité (voir __init__)
+    MINOR_VERSION = 2
 
     def __init__(self) -> None:
         self._area_id: str | None = None

@@ -40,12 +40,17 @@ from .const import (
     CONF_PRESENCE,
     CONF_PRESENCE_HOLD,
     CONF_TEMPERATURE,
+    DAYLIGHT_OFF_DELAY,
+    DAYLIGHT_RELOCK_DELAY,
     DEFAULT_SETTINGS,
     DEFAULT_TIMES,
     DOMAIN,
+    FAN_SPEED_MIN_CHANGE,
     HOLD_INACTIVE_STATES,
     KIND_FANS,
     KIND_LIGHTS,
+    LIGHTS_MODE_ALL,
+    LOG_THROTTLE,
     PERIOD_DAY,
     PERIOD_NIGHT,
     ROOM_OCCUPIED,
@@ -53,6 +58,7 @@ from .const import (
     ROOM_VACANT,
     SETTING_DAY_BRIGHTNESS,
     SETTING_DAY_COLOR_TEMP,
+    SETTING_DAYLIGHT_OFF_LUX,
     SETTING_FAN_MIN_SPEED,
     SETTING_FAN_OFF_DELAY,
     SETTING_FAN_SPEED_RANGE,
@@ -163,6 +169,13 @@ class RoomController:
         self.settings: dict[str, float] = dict(DEFAULT_SETTINGS)
         self.times: dict[str, time] = dict(DEFAULT_TIMES)
         self.forced_night = False
+        self.forced_night_until: datetime | None = None
+        self.lights_mode = LIGHTS_MODE_ALL
+        # Lumière du jour : extinction différée, puis verrou d'allumage
+        self.daylight_locked = False
+        self._daylight_timer: CALLBACK_TYPE | None = None
+        self._relock_timer: CALLBACK_TYPE | None = None
+        self._last_logs: dict[str, datetime] = {}
         self.period = PERIOD_DAY
         self._natural_period = PERIOD_DAY
         self.occupied = False
@@ -204,6 +217,7 @@ class RoomController:
         for group in self.groups.values():
             group.cancel_off_timer()
             group.clear_override()
+        self._reset_daylight()
 
     def _track(self, entity_ids: list[str], action: Callable[..., Any]) -> None:
         if entity_ids:
@@ -251,10 +265,22 @@ class RoomController:
         self._refresh(reevaluate)
 
     @callback
-    def set_forced_night(self, forced: bool, *, reevaluate: bool = True) -> None:
-        if forced == self.forced_night:
+    def set_forced_night(
+        self,
+        forced: bool,
+        *,
+        until: datetime | None = None,
+        reevaluate: bool = True,
+    ) -> None:
+        """Force la nuit jusqu'à la prochaine heure de fin de nuit."""
+        if forced and until is None:
+            until = self._next_night_end()
+        if forced and until is not None and until <= dt_util.utcnow():
+            forced = False  # échéance déjà passée (restauration tardive)
+        if forced == self.forced_night and until == self.forced_night_until:
             return
         self.forced_night = forced
+        self.forced_night_until = until if forced else None
         previous = self.period
         self.period = self._effective_period()
         if reevaluate and self.period != previous:
@@ -262,6 +288,22 @@ class RoomController:
                 "passe en mode nuit (forcé)" if forced else "repasse en mode jour"
             )
         self._refresh(reevaluate)
+
+    @callback
+    def set_lights_mode(self, mode: str, *, reevaluate: bool = True) -> None:
+        self.lights_mode = mode
+        self._refresh(reevaluate)
+
+    def _next_night_end(self) -> datetime:
+        """Prochaine occurrence de l'heure de fin de nuit (même sans plage de nuit)."""
+        now = dt_util.now()
+        end = self.times[TIME_NIGHT_END]
+        candidate = now.replace(
+            hour=end.hour, minute=end.minute, second=0, microsecond=0
+        )
+        if candidate <= now:
+            candidate += timedelta(days=1)
+        return dt_util.as_utc(candidate)
 
     @property
     def is_night(self) -> bool:
@@ -289,6 +331,9 @@ class RoomController:
         return {
             "period": self.period,
             "forced_night": self.forced_night,
+            "forced_night_until": self.forced_night_until,
+            "lights_mode": self.lights_mode,
+            "daylight_locked": self.daylight_locked,
             "occupied": self.occupied,
             "presence_hold_active": self._hold_active(),
             "effective_temperature": self._effective_temperature(),
@@ -413,19 +458,104 @@ class RoomController:
             self._turn_on_lights(group, max(brightness, 1))
             self._log(f"rétablit les lumières, présence de retour ({self._reason()})")
             return
-        if brightness <= 0:
-            return  # pas d'allumage automatique sur cette période
-        if self._is_dark() and not self._any_on(group):
-            self._turn_on_lights(group, brightness)
+        self._check_daylight()
+        if brightness <= 0 or self.daylight_locked:
+            return  # pas d'allumage automatique pour l'instant
+        if not self._is_dark():
+            return
+        off = [e for e in group.entity_ids if not self._is_on(e)]
+        if self.lights_mode == LIGHTS_MODE_ALL:
+            targets = off
+        else:
+            targets = group.entity_ids if len(off) == len(group.entity_ids) else []
+        if targets:
+            self._turn_on_lights(group, brightness, targets)
             self._log(f"allume les lumières à {brightness:g} % ({self._reason()})")
 
-    def _turn_on_lights(self, group: ActuatorGroup, brightness: float) -> None:
+    # --- Lumière du jour --------------------------------------------------
+
+    def _check_daylight(self) -> None:
+        """Éteint les lumières quand la lumière naturelle suffit durablement."""
+        group = self.groups[KIND_LIGHTS]
+        off_lux = self.settings[SETTING_DAYLIGHT_OFF_LUX]
+        lux = self._numeric_state(self.illuminance)
+
+        # Verrou posé après une extinction : levé quand il refait sombre.
+        if self.daylight_locked:
+            if lux is not None and lux < self.settings[SETTING_LUX_THRESHOLD]:
+                if self._relock_timer is None:
+                    self._relock_timer = async_call_later(
+                        self.hass, DAYLIGHT_RELOCK_DELAY, self._unlock_daylight
+                    )
+            elif self._relock_timer is not None:
+                self._relock_timer()
+                self._relock_timer = None
+
+        if (
+            off_lux <= 0
+            or lux is None
+            or lux < off_lux
+            or not self.occupied
+            or not group.active
+            or not self._any_on(group)
+        ):
+            if self._daylight_timer is not None:
+                self._daylight_timer()
+                self._daylight_timer = None
+            return
+        if self._daylight_timer is None:
+            self._daylight_timer = async_call_later(
+                self.hass, DAYLIGHT_OFF_DELAY, self._daylight_off
+            )
+
+    @callback
+    def _daylight_off(self, _now: datetime) -> None:
+        self._daylight_timer = None
+        group = self.groups[KIND_LIGHTS]
+        lux = self._numeric_state(self.illuminance)
+        off_lux = self.settings[SETTING_DAYLIGHT_OFF_LUX]
+        if (
+            off_lux > 0
+            and lux is not None
+            and lux >= off_lux
+            and group.active
+            and self._any_on(group)
+        ):
+            self._call(group, SERVICE_TURN_OFF)
+            self.daylight_locked = True
+            self._log(f"éteint les lumières, lumière naturelle suffisante ({lux:g} lx)")
+        self._notify()
+
+    @callback
+    def _unlock_daylight(self, _now: datetime) -> None:
+        self._relock_timer = None
+        self.daylight_locked = False
+        self.async_reevaluate()
+
+    def _reset_daylight(self) -> None:
+        for timer in (self._daylight_timer, self._relock_timer):
+            if timer is not None:
+                timer()
+        self._daylight_timer = None
+        self._relock_timer = None
+        self.daylight_locked = False
+
+    def _is_on(self, entity_id: str) -> bool:
+        state = self.hass.states.get(entity_id)
+        return state is not None and state.state == STATE_ON
+
+    def _turn_on_lights(
+        self,
+        group: ActuatorGroup,
+        brightness: float,
+        entity_ids: list[str] | None = None,
+    ) -> None:
         color_temp = self._setting(SETTING_DAY_COLOR_TEMP, SETTING_NIGHT_COLOR_TEMP)
         context = self._new_context()
         lights_ct: list[str] = []
         lights_plain: list[str] = []
         others: list[str] = []
-        for entity_id in group.entity_ids:
+        for entity_id in entity_ids or group.entity_ids:
             if not entity_id.startswith("light."):
                 others.append(entity_id)
             elif color_temp > 0 and self._supports_color_temp(entity_id):
@@ -515,14 +645,22 @@ class RoomController:
                 continue
             current = state.attributes.get("percentage")
             step = state.attributes.get("percentage_step") or 1
-            if current is None or abs(current - percentage) >= step / 2:
+            if (
+                current is None
+                # Pleine vitesse atteinte ou quittée : toujours appliquer.
+                or (current != percentage and 100 in (current, percentage))
+                or abs(current - percentage) >= max(step / 2, FAN_SPEED_MIN_CHANGE)
+            ):
                 to_adjust.append(entity_id)
         if to_adjust:
             self._service(
                 "fan", "set_percentage", to_adjust, self._new_context(),
                 percentage=percentage,
             )
-            self._log(f"règle les ventilateurs à {percentage} % ({self._reason()})")
+            self._log(
+                f"règle les ventilateurs à {percentage} % ({self._reason()})",
+                throttle="fan_speed",
+            )
 
     # --- Extinction -----------------------------------------------------
 
@@ -586,19 +724,20 @@ class RoomController:
             # Pièce vide : on lève les reprises manuelles et on programme l'extinction.
             for group in self.groups.values():
                 group.clear_override()
+            self._reset_daylight()
         self.async_reevaluate()
 
     @callback
     def _on_minute(self, _now: datetime) -> None:
-        natural = self._compute_natural_period()
         if (
             self.forced_night
-            and self._natural_period == PERIOD_NIGHT
-            and natural == PERIOD_DAY
+            and self.forced_night_until is not None
+            and dt_util.utcnow() >= self.forced_night_until
         ):
-            # Fin de la nuit : le forçage s'arrête de lui-même.
+            # Heure de fin de nuit atteinte : le forçage s'arrête de lui-même.
             self.forced_night = False
-        self._natural_period = natural
+            self.forced_night_until = None
+        self._natural_period = self._compute_natural_period()
         period = self._effective_period()
         if period != self.period:
             self.period = period
@@ -695,9 +834,19 @@ class RoomController:
             )
         )
 
-    def _log(self, message: str) -> None:
-        """Ajoute une entrée au Journal de Home Assistant."""
+    def _log(self, message: str, *, throttle: str | None = None) -> None:
+        """Ajoute une entrée au Journal de Home Assistant.
+
+        Avec `throttle`, les entrées de même nature sont espacées d'au moins
+        LOG_THROTTLE secondes (ajustements de vitesse fréquents, par exemple).
+        """
         _LOGGER.debug("%s : %s", self.name, message)
+        if throttle is not None:
+            now = dt_util.utcnow()
+            last = self._last_logs.get(throttle)
+            if last is not None and (now - last).total_seconds() < LOG_THROTTLE:
+                return
+            self._last_logs[throttle] = now
         data: dict[str, Any] = {
             "name": f"Lumina {self.name}",
             "message": message,

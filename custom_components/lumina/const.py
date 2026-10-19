@@ -38,6 +38,7 @@ SETTING_FAN_MIN_SPEED: Final = "fan_min_speed"
 SETTING_FAN_SPEED_RANGE: Final = "fan_speed_range"
 SETTING_LIGHT_WARNING: Final = "light_warning_duration"
 SETTING_NIGHT_COLOR_TEMP: Final = "night_color_temp"
+SETTING_DAYLIGHT_OFF_LUX: Final = "daylight_off_lux"
 
 # Réglages propres à la nuit
 SETTING_NIGHT_BRIGHTNESS: Final = "night_brightness"
@@ -66,7 +67,26 @@ DEFAULT_SETTINGS: Final[dict[str, float]] = {
     # Teinte des lumières compatibles (0 = ne pas modifier)
     SETTING_DAY_COLOR_TEMP: 4000,  # K
     SETTING_NIGHT_COLOR_TEMP: 2700,  # K
+    # Extinction quand la lumière naturelle suffit (0 = désactivé). À régler
+    # au-dessus de ce que mesure le capteur avec les lampes allumées.
+    SETTING_DAYLIGHT_OFF_LUX: 0,  # lx
 }
+
+# Lumière du jour : durée au-dessus du seuil avant extinction, et durée
+# sous le seuil d'allumage avant de réautoriser l'allumage automatique.
+DAYLIGHT_OFF_DELAY: Final = 300  # s
+DAYLIGHT_RELOCK_DELAY: Final = 600  # s
+
+# Plusieurs lumières : toutes allumées, ou aucune action si l'une l'est déjà
+LIGHTS_MODE_ALL: Final = "all"
+LIGHTS_MODE_ANY: Final = "any"
+LIGHTS_MODES: Final = [LIGHTS_MODE_ALL, LIGHTS_MODE_ANY]
+
+# Écart minimal de vitesse avant de réajuster un ventilateur
+FAN_SPEED_MIN_CHANGE: Final = 10  # points de %
+
+# Intervalle minimal entre deux entrées de journal de même nature
+LOG_THROTTLE: Final = 600  # s
 
 # Luminosité appliquée pendant l'avertissement avant extinction
 WARNING_BRIGHTNESS: Final = 20  # %
