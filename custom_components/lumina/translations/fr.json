@@ -133,6 +133,9 @@
       },
       "daylight_off_lux": {
         "name": "Extinction à la lumière du jour"
+      },
+      "vacancy_confirmation": {
+        "name": "Confirmation d'absence"
       }
     },
     "sensor": {
@@ -186,6 +189,9 @@
           },
           "daylight_locked": {
             "name": "Allumage suspendu (lumière du jour)"
+          },
+          "vacancy_pending": {
+            "name": "Absence en cours de confirmation"
           }
         }
       },
