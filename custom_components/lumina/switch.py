@@ -5,14 +5,14 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.const import STATE_OFF, STATE_ON
+from homeassistant.const import STATE_OFF, STATE_ON, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
 
 from . import LuminaConfigEntry
-from .const import KIND_FANS, KIND_LIGHTS
+from .const import KIND_CLIMATE, KIND_FANS, KIND_LIGHTS
 from .entity import LuminaEntity
 
 
@@ -24,10 +24,11 @@ async def async_setup_entry(
     controller = entry.runtime_data
     entities: list[SwitchEntity] = [
         LuminaAutoSwitch(entry, kind)
-        for kind in (KIND_LIGHTS, KIND_FANS)
+        for kind in (KIND_LIGHTS, KIND_FANS, KIND_CLIMATE)
         if controller.groups[kind].entity_ids
     ]
     entities.append(LuminaForcedNightSwitch(entry))
+    entities.append(LuminaNightOverrideSwitch(entry))
     async_add_entities(entities)
 
 
@@ -84,3 +85,30 @@ class LuminaForcedNightSwitch(LuminaEntity, SwitchEntity, RestoreEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         self._controller.set_forced_night(False)
+
+
+class LuminaNightOverrideSwitch(LuminaEntity, SwitchEntity, RestoreEntity):
+    """La nuit, un réglage manuel tient jusqu'à la fin de la nuit."""
+
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, entry: LuminaConfigEntry) -> None:
+        super().__init__(entry, "night_override_until_morning")
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state is not None and last_state.state in (STATE_ON, STATE_OFF):
+            self._controller.set_night_override_until_morning(
+                last_state.state == STATE_ON, reevaluate=False
+            )
+
+    @property
+    def is_on(self) -> bool:
+        return self._controller.night_override_until_morning
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        self._controller.set_night_override_until_morning(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        self._controller.set_night_override_until_morning(False)

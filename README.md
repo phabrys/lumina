@@ -1,6 +1,6 @@
 # Lumina
 
-Intégration Home Assistant de gestion automatique des lumières et ventilateurs **par pièce**, avec prise en compte de la présence, de la luminosité et de la température.
+Intégration Home Assistant de gestion automatique des lumières, ventilateurs et clims **par pièce**, avec prise en compte de la présence, de la luminosité et de la température.
 
 Chaque pièce est une entrée de configuration indépendante, ajoutée depuis l'interface : aucune automatisation à écrire ou à dupliquer.
 
@@ -20,7 +20,7 @@ stateDiagram-v2
 - **Présence** : la pièce n'est considérée vide qu'après un court délai sans détection (30 s par défaut). Une micro-coupure du détecteur n'éteint donc rien et ne lève pas le contrôle manuel. Les délais d'extinction restent comptés depuis la fin réelle de présence.
 - **Lumières** : allumées à l'arrivée si la luminosité est sous le seuil (toujours, s'il n'y a pas de capteur de luminosité). Si le capteur choisi ne répond pas, Lumina se fie au soleil (`sun.sun`) : allumage seulement s'il est couché. Éteintes quand la pièce est vide depuis le délai réglé.
 - **Ventilateurs** : allumés quand la pièce est occupée et que la température atteint le seuil, arrêtés 1 °C en dessous (hystérésis), avec au moins 5 min entre deux bascules dues à la température. Sans capteur de température, ils suivent simplement la présence.
-- **Contrôle manuel** : allumer ou éteindre une lumière ou un ventilateur à la main suspend l'automatisme de ce groupe pendant la durée réglée. Plusieurs changements en moins de 5 s (deux lampes, extinction + vitesse) comptent pour un seul geste. La reprise manuelle est levée dès que la pièce est confirmée vide.
+- **Contrôle manuel** : allumer ou éteindre une lumière ou un ventilateur à la main suspend l'automatisme de ce groupe pendant la durée réglée. Plusieurs changements en moins de 5 s (deux lampes, extinction + vitesse) comptent pour un seul geste. La reprise manuelle est levée dès que la pièce est confirmée vide. La nuit, un geste manuel tient jusqu'à la fin de la nuit (switch **Contrôle manuel jusqu'au matin**, actif par défaut) : la lumière éteinte au coucher ne se rallume pas au bout de la durée réglée.
 
 ### Mode nuit
 
@@ -34,9 +34,20 @@ Mettre la même heure en début et en fin de nuit désactive le mode nuit pour l
 
 Le switch **Nuit maintenant** force le mode nuit tout de suite ; il se désactive seul à la prochaine heure de fin de nuit, même si la pièce n'a pas de plage de nuit.
 
+### Clims
+
+Lumina n'allume jamais une clim : il agit seulement quand la pièce se vide.
+
+- **Pièce vide** : après le délai réglé (15 min par défaut), la clim est éteinte, passée en `eco` ou sa consigne est relevée de 2 °C, selon le réglage du jour et celui de la nuit. La nuit, Lumina ne fait rien par défaut : un détecteur peut ne pas voir un dormeur.
+- **Retour dans la pièce** : si quelqu'un revient dans les 2 h, la clim retrouve l'état qu'elle avait (mode, preset ou consigne). Au-delà, elle reste telle quelle.
+- **Ventilateurs pendant la clim** : quand une clim refroidit, les ventilateurs suivent la température (par défaut), passent en brassage à vitesse fixe pour répartir le froid, ou s'arrêtent.
+- **Contrôle manuel** : changer le mode, la consigne, le preset ou la ventilation de la clim suspend l'automatisme de la clim, comme pour les lumières.
+
+Une clim gérée par Lumina ne peut pas servir de maintien de présence, sinon la pièce ne se viderait jamais.
+
 ### Confort
 
-- **Maintien de présence** : une TV, une enceinte ou une clim active garde la pièce occupée quand les détecteurs ne voient plus personne (devant la TV sans bouger, par exemple). Le maintien prolonge une présence, il ne la déclenche pas. Une pièce occupée le reste après un redémarrage de Home Assistant tant que le maintien est actif : l'occupation d'avant le redémarrage est reprise, puis levée après la confirmation d'absence si plus rien ne la justifie.
+- **Maintien de présence** : une TV, une enceinte (ou une clim non gérée par Lumina) active garde la pièce occupée quand les détecteurs ne voient plus personne (devant la TV sans bouger, par exemple). Le maintien prolonge une présence, il ne la déclenche pas. Une pièce occupée le reste après un redémarrage de Home Assistant tant que le maintien est actif : l'occupation d'avant le redémarrage est reprise, puis levée après la confirmation d'absence si plus rien ne la justifie.
 - **Température ressentie** : avec un capteur d'humidité, les ventilateurs suivent l'indice de chaleur (NOAA) plutôt que la température mesurée. 27 °C à 85 % d'humidité se ressentent comme 30 °C.
 - **Vitesse progressive** : les ventilateurs démarrent à la vitesse minimale (33 %) au seuil, puis montent jusqu'à 100 % sur l'écart réglé (3 °C). Une vitesse minimale à 0 revient au simple marche/arrêt. Changer la vitesse à la main compte comme une reprise manuelle.
 - **Avertissement avant extinction** : les lumières baissent à 20 % pendant 15 s avant de s'éteindre. Un mouvement pendant ce temps rétablit la lumière.
@@ -75,6 +86,12 @@ Les lumières et ventilateurs peuvent aussi être des prises (`switch`), par exe
 | `number.…_extinction_a_la_lumiere_du_jour` | En lx (défaut 0 = désactivé) |
 | `select.…_lumieres_a_allumer` | Toutes / Seulement si aucune n'est allumée |
 | `select.…_ventilateurs_a_allumer` | Tous / Seulement si aucun n'est allumé |
+| `switch.…_controle_manuel_jusqu_au_matin_nuit` | La nuit, un geste manuel tient jusqu'à la fin de la nuit (actif par défaut) |
+| `switch.…_gestion_auto_de_la_clim` | Active ou suspend l'automatisme des clims |
+| `select.…_clim_en_piece_vide_jour` / `…_nuit` | Éteindre / Mode eco / Relever la consigne de 2 °C / Ne rien faire (défaut : éteindre le jour, rien la nuit) |
+| `number.…_delai_avant_action_sur_la_clim` | En secondes (défaut 900) |
+| `select.…_ventilateurs_pendant_la_clim` | Selon la température / Brassage / Arrêtés |
+| `number.…_vitesse_de_brassage` | En % (défaut 33) |
 | `button.…_reprendre_l_automatisme` | Met fin au contrôle manuel tout de suite |
 
 Les réglages n'apparaissent que s'ils ont un sens pour la pièce (pas de seuil de luminosité sans capteur, etc.) et sont conservés au redémarrage.
@@ -97,7 +114,7 @@ Copier `custom_components/lumina` dans le dossier `custom_components` de la conf
 
 ## Ajouter une pièce
 
-**Paramètres → Appareils et services → Ajouter une intégration → Lumina**, puis choisir la pièce. Les capteurs de présence, lumières, ventilateurs et capteurs de luminosité/température rattachés à la pièce sont proposés automatiquement. Les entités se modifient ensuite via **Configurer**.
+**Paramètres → Appareils et services → Ajouter une intégration → Lumina**, puis choisir la pièce. Les capteurs de présence, lumières, ventilateurs, clims et capteurs de luminosité/température rattachés à la pièce sont proposés automatiquement. Les entités se modifient ensuite via **Configurer**.
 
 Pour que la détection automatique fonctionne, chaque entité (ou son appareil) doit être rattachée à la bonne pièce dans Home Assistant.
 

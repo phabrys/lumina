@@ -13,8 +13,10 @@ from homeassistant.helpers import (
 
 from custom_components.lumina.const import (
     CONF_AREA,
+    CONF_CLIMATES,
     CONF_LIGHTS,
     CONF_PRESENCE,
+    CONF_PRESENCE_HOLD,
     DOMAIN,
 )
 
@@ -101,3 +103,23 @@ async def test_discovery_through_devices(hass: HomeAssistant) -> None:
         result["flow_id"], {CONF_AREA: bureau.id}
     )
     assert _suggested(result, CONF_PRESENCE) == [pir.entity_id]
+
+
+async def test_managed_climate_cannot_hold_presence(hass: HomeAssistant) -> None:
+    area = ar.async_get(hass).async_create("Chambre")
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_AREA: area.id}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            CONF_PRESENCE: ["binary_sensor.pir_chambre"],
+            CONF_CLIMATES: ["climate.chambre"],
+            CONF_PRESENCE_HOLD: ["climate.chambre"],
+        },
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {CONF_PRESENCE_HOLD: "climate_in_hold"}

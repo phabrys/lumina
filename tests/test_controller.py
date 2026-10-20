@@ -19,6 +19,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.lumina.const import (
     CONF_AREA,
+    CONF_CLIMATES,
     CONF_FANS,
     CONF_HUMIDITY,
     CONF_ILLUMINANCE,
@@ -889,3 +890,200 @@ async def test_fans_mode_any_leaves_others(hass: HomeAssistant) -> None:
     hass.states.async_set(PIR, "on")
     await hass.async_block_till_done()
     assert turn_on == []
+
+
+# ----------------------------------------------------------------------
+# Nuit : contrôle manuel jusqu'au matin
+# ----------------------------------------------------------------------
+
+
+async def test_night_override_lasts_until_morning(hass: HomeAssistant, daytime) -> None:
+    daytime.move_to(NIGHT)
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LUX, "5")
+    hass.states.async_set(LIGHT, "on")
+    entry = await _setup(hass)
+    turn_on.clear()
+
+    hass.states.async_set(LIGHT, "off")  # extinction au coucher
+    await hass.async_block_till_done()
+    until = dt_util.parse_datetime(
+        str(_room(hass, entry).attributes["lights_override_until"])
+    )
+    assert dt_util.as_local(until).strftime("%H:%M") == "07:00"
+
+    await _later(hass, minutes=31)
+    assert turn_on == []  # la lumière ne se rallume pas au milieu de la nuit
+
+
+async def test_night_override_can_be_limited(hass: HomeAssistant, daytime) -> None:
+    daytime.move_to(NIGHT)
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LUX, "5")
+    hass.states.async_set(LIGHT, "on")
+    entry = await _setup(hass)
+    await hass.services.async_call(
+        "switch",
+        "turn_off",
+        {"entity_id": _eid(hass, entry, "switch", "night_override_until_morning")},
+        blocking=True,
+    )
+    turn_on.clear()
+
+    hass.states.async_set(LIGHT, "off")
+    await hass.async_block_till_done()
+    await _later(hass, minutes=31)
+    assert _entities(turn_on) == [[LIGHT]]
+
+
+# ----------------------------------------------------------------------
+# Clims
+# ----------------------------------------------------------------------
+
+CLIMATE = "climate.salon"
+CLIMATE_ATTRS = {
+    "temperature": 24,
+    "preset_mode": "none",
+    "preset_modes": ["none", "eco", "sleep"],
+    "min_temp": 16,
+    "max_temp": 30,
+}
+
+
+async def _setup_with_climate(hass: HomeAssistant, **extra) -> MockConfigEntry:
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LUX, "500")
+    hass.states.async_set(LIGHT, "off")
+    hass.states.async_set(CLIMATE, "cool", CLIMATE_ATTRS)
+    return await _setup(hass, **{CONF_CLIMATES: [CLIMATE], **extra})
+
+
+async def _select(hass: HomeAssistant, entry, key: str, option: str) -> None:
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": _eid(hass, entry, "select", key), "option": option},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+
+async def test_climate_turned_off_then_restored(hass: HomeAssistant) -> None:
+    turn_off = async_mock_service(hass, "climate", "turn_off")
+    set_mode = async_mock_service(hass, "climate", "set_hvac_mode")
+    entry = await _setup_with_climate(hass)
+
+    hass.states.async_set(PIR, "off")
+    await hass.async_block_till_done()
+    await _later(hass, seconds=31)  # absence confirmée
+    assert turn_off == []
+    await _later(hass, seconds=31 + 900)
+    assert _entities(turn_off) == [[CLIMATE]]
+    assert _room(hass, entry).attributes["climate_vacant_applied"] == "off"
+
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert _entities(set_mode) == [[CLIMATE]]
+    assert set_mode[0].data["hvac_mode"] == "cool"
+
+
+async def test_climate_eco_then_restored(hass: HomeAssistant) -> None:
+    set_preset = async_mock_service(hass, "climate", "set_preset_mode")
+    entry = await _setup_with_climate(hass)
+    await _select(hass, entry, "climate_vacant_day", "eco")
+
+    hass.states.async_set(PIR, "off")
+    await hass.async_block_till_done()
+    await _later(hass, seconds=31)  # absence confirmée
+    await _later(hass, seconds=31 + 900)
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert [c.data["preset_mode"] for c in set_preset] == ["eco", "none"]
+
+
+async def test_climate_setback_then_restored(hass: HomeAssistant) -> None:
+    set_temp = async_mock_service(hass, "climate", "set_temperature")
+    entry = await _setup_with_climate(hass)
+    await _select(hass, entry, "climate_vacant_day", "setback")
+
+    hass.states.async_set(PIR, "off")
+    await hass.async_block_till_done()
+    await _later(hass, seconds=31)  # absence confirmée
+    await _later(hass, seconds=31 + 900)
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert [c.data["temperature"] for c in set_temp] == [26, 24]
+
+
+async def test_climate_left_alone_at_night(hass: HomeAssistant, daytime) -> None:
+    daytime.move_to(NIGHT)
+    turn_off = async_mock_service(hass, "climate", "turn_off")
+    await _setup_with_climate(hass)
+
+    hass.states.async_set(PIR, "off")
+    await hass.async_block_till_done()
+    await _later(hass, seconds=31)  # absence confirmée
+    await _later(hass, seconds=31 + 900)
+    assert turn_off == []
+
+
+async def test_climate_not_restored_after_long_absence(
+    hass: HomeAssistant, daytime
+) -> None:
+    async_mock_service(hass, "climate", "turn_off")
+    set_mode = async_mock_service(hass, "climate", "set_hvac_mode")
+    await _setup_with_climate(hass)
+
+    hass.states.async_set(PIR, "off")
+    await hass.async_block_till_done()
+    await _later(hass, seconds=31)  # absence confirmée
+    await _later(hass, seconds=31 + 900)
+    daytime.tick(timedelta(hours=3))
+    await _later(hass, seconds=1)
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert set_mode == []
+
+
+async def test_manual_climate_change_is_an_override(hass: HomeAssistant) -> None:
+    entry = await _setup_with_climate(hass)
+
+    hass.states.async_set(CLIMATE, "cool", {**CLIMATE_ATTRS, "temperature": 22})
+    await hass.async_block_till_done()
+    assert _room(hass, entry).attributes["climate_override_until"] is not None
+
+
+async def test_fans_circulate_while_climate_runs(hass: HomeAssistant) -> None:
+    turn_on = async_mock_service(hass, "fan", "turn_on")
+    turn_off = async_mock_service(hass, "homeassistant", "turn_off")
+    hass.states.async_set(TEMP, "22")  # sous le seuil : arrêt selon la température
+    hass.states.async_set(FAN, "off")
+    entry = await _setup_with_climate(
+        hass, **{CONF_FANS: [FAN], CONF_TEMPERATURE: TEMP}
+    )
+    assert turn_on == []
+
+    await _select(hass, entry, "fans_with_climate", "mix")
+    assert _entities(turn_on) == [[FAN]]
+    assert turn_on[0].data["percentage"] == 33
+
+    # Clim arrêtée : retour à la règle de température (pièce fraîche).
+    # Le ventilateur démarre avec le contexte de la commande de Lumina.
+    hass.states.async_set(FAN, "on", {"percentage": 33}, context=turn_on[0].context)
+    hass.states.async_set(CLIMATE, "off", CLIMATE_ATTRS)
+    await hass.async_block_till_done()
+    assert _entities(turn_off) == [[FAN]]
+
+
+async def test_fans_stop_while_climate_runs(hass: HomeAssistant) -> None:
+    turn_off = async_mock_service(hass, "homeassistant", "turn_off")
+    hass.states.async_set(TEMP, "30")
+    hass.states.async_set(FAN, "on", {"percentage": 100})
+    entry = await _setup_with_climate(
+        hass, **{CONF_FANS: [FAN], CONF_TEMPERATURE: TEMP}
+    )
+
+    await _select(hass, entry, "fans_with_climate", "off")
+    assert _entities(turn_off) == [[FAN]]

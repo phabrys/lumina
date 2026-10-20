@@ -16,6 +16,7 @@
           "lights": "Lights",
           "illuminance_sensor": "Illuminance sensor",
           "fans": "Fans",
+          "climates": "Air conditioners",
           "temperature_sensor": "Temperature sensor",
           "presence_hold": "Presence hold",
           "humidity_sensor": "Humidity sensor"
@@ -25,15 +26,17 @@
           "lights": "Turned on on arrival when the room is dark.",
           "illuminance_sensor": "Without a sensor, the room is always considered dark.",
           "fans": "Turned on on arrival when the temperature exceeds the threshold.",
+          "climates": "Lumina never turns them on. Empty room: off, eco or a raised setpoint as configured, then back to the previous state when someone returns.",
           "temperature_sensor": "Without a sensor, fans follow presence only.",
-          "presence_hold": "TV, speaker, AC…: while one of these entities is active, the room stays occupied even if the sensors no longer detect anyone.",
+          "presence_hold": "TV, speaker…: while one of these entities is active, the room stays occupied even if the sensors no longer detect anyone.",
           "humidity_sensor": "With humidity, fans follow the apparent (feels-like) temperature instead of the measured one."
         }
       }
     },
     "error": {
       "no_presence": "Select at least one presence sensor.",
-      "no_actuator": "Select at least one light or fan."
+      "no_actuator": "Select at least one light, fan or air conditioner.",
+      "climate_in_hold": "An air conditioner managed by Lumina cannot also hold presence: the room would never become empty."
     },
     "abort": {
       "already_configured": "This room is already managed by Lumina."
@@ -48,6 +51,7 @@
           "lights": "Lights",
           "illuminance_sensor": "Illuminance sensor",
           "fans": "Fans",
+          "climates": "Air conditioners",
           "temperature_sensor": "Temperature sensor",
           "presence_hold": "Presence hold",
           "humidity_sensor": "Humidity sensor"
@@ -57,15 +61,17 @@
           "lights": "Turned on on arrival when the room is dark.",
           "illuminance_sensor": "Without a sensor, the room is always considered dark.",
           "fans": "Turned on on arrival when the temperature exceeds the threshold.",
+          "climates": "Lumina never turns them on. Empty room: off, eco or a raised setpoint as configured, then back to the previous state when someone returns.",
           "temperature_sensor": "Without a sensor, fans follow presence only.",
-          "presence_hold": "TV, speaker, AC…: while one of these entities is active, the room stays occupied even if the sensors no longer detect anyone.",
+          "presence_hold": "TV, speaker…: while one of these entities is active, the room stays occupied even if the sensors no longer detect anyone.",
           "humidity_sensor": "With humidity, fans follow the apparent (feels-like) temperature instead of the measured one."
         }
       }
     },
     "error": {
       "no_presence": "Select at least one presence sensor.",
-      "no_actuator": "Select at least one light or fan."
+      "no_actuator": "Select at least one light, fan or air conditioner.",
+      "climate_in_hold": "An air conditioner managed by Lumina cannot also hold presence: the room would never become empty."
     }
   },
   "entity": {
@@ -83,6 +89,12 @@
             "name": "Until"
           }
         }
+      },
+      "auto_climate": {
+        "name": "Automatic AC control"
+      },
+      "night_override_until_morning": {
+        "name": "Manual control until morning (night)"
       }
     },
     "number": {
@@ -136,6 +148,12 @@
       },
       "vacancy_confirmation": {
         "name": "Vacancy confirmation"
+      },
+      "climate_vacant_delay": {
+        "name": "Delay before AC action"
+      },
+      "fan_mix_speed": {
+        "name": "Air circulation speed"
       }
     },
     "sensor": {
@@ -225,6 +243,27 @@
           },
           "fans": {
             "name": "Fans"
+          },
+          "climate_override_until": {
+            "name": "AC manual control until"
+          },
+          "climate_running": {
+            "name": "AC running"
+          },
+          "climate_vacant_action": {
+            "name": "AC action in an empty room"
+          },
+          "climate_vacant_at": {
+            "name": "AC action at"
+          },
+          "climate_vacant_applied": {
+            "name": "Action applied to the AC"
+          },
+          "fans_with_climate": {
+            "name": "Fans while the AC runs"
+          },
+          "climates": {
+            "name": "Air conditioners"
           }
         }
       },
@@ -253,6 +292,32 @@
         "state": {
           "all": "All",
           "any": "Only if none is on"
+        }
+      },
+      "climate_vacant_day": {
+        "name": "AC in an empty room (day)",
+        "state": {
+          "off": "Turn off",
+          "eco": "Eco mode",
+          "setback": "Raise setpoint by 2 °C",
+          "none": "Do nothing"
+        }
+      },
+      "climate_vacant_night": {
+        "name": "AC in an empty room (night)",
+        "state": {
+          "off": "Turn off",
+          "eco": "Eco mode",
+          "setback": "Raise setpoint by 2 °C",
+          "none": "Do nothing"
+        }
+      },
+      "fans_with_climate": {
+        "name": "Fans while the AC runs",
+        "state": {
+          "normal": "Follow temperature",
+          "mix": "Air circulation",
+          "off": "Stopped"
         }
       }
     },

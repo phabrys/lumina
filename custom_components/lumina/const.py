@@ -14,6 +14,7 @@ CONF_ILLUMINANCE: Final = "illuminance_sensor"
 CONF_TEMPERATURE: Final = "temperature_sensor"
 CONF_LIGHTS: Final = "lights"
 CONF_FANS: Final = "fans"
+CONF_CLIMATES: Final = "climates"
 CONF_PRESENCE_HOLD: Final = "presence_hold"
 CONF_HUMIDITY: Final = "humidity_sensor"
 
@@ -25,6 +26,7 @@ HOLD_INACTIVE_STATES: Final = frozenset(
 # Groupes d'actionneurs
 KIND_LIGHTS: Final = "lights"
 KIND_FANS: Final = "fans"
+KIND_CLIMATE: Final = "climate"
 
 # Réglages exposés en entités number (restaurés au redémarrage)
 SETTING_LUX_THRESHOLD: Final = "lux_threshold"
@@ -40,6 +42,8 @@ SETTING_LIGHT_WARNING: Final = "light_warning_duration"
 SETTING_NIGHT_COLOR_TEMP: Final = "night_color_temp"
 SETTING_DAYLIGHT_OFF_LUX: Final = "daylight_off_lux"
 SETTING_VACANCY_CONFIRM: Final = "vacancy_confirmation"
+SETTING_CLIMATE_VACANT_DELAY: Final = "climate_vacant_delay"
+SETTING_FAN_MIX_SPEED: Final = "fan_mix_speed"
 
 # Réglages propres à la nuit
 SETTING_NIGHT_BRIGHTNESS: Final = "night_brightness"
@@ -74,6 +78,10 @@ DEFAULT_SETTINGS: Final[dict[str, float]] = {
     # Absence confirmée seulement après ce délai sans présence : évite qu'une
     # micro-coupure du détecteur vide la pièce (et lève la reprise manuelle).
     SETTING_VACANCY_CONFIRM: 30,  # s
+    # Clim : délai en pièce vide avant d'appliquer l'action choisie
+    SETTING_CLIMATE_VACANT_DELAY: 900,  # s
+    # Ventilateurs en brassage pendant que la clim tourne
+    SETTING_FAN_MIX_SPEED: 33,  # %
 }
 
 # Ventilateurs : durée minimale entre deux bascules dues à la température
@@ -126,3 +134,39 @@ ROOM_OCCUPIED: Final = "occupied"
 ROOM_VACANT: Final = "vacant"
 ROOM_OVERRIDE: Final = "override"
 ROOM_STATES: Final = [ROOM_OCCUPIED, ROOM_VACANT, ROOM_OVERRIDE]
+
+# Clim en pièce vide : action appliquée après le délai, le jour et la nuit
+CLIMATE_ACTION_OFF: Final = "off"
+CLIMATE_ACTION_ECO: Final = "eco"
+CLIMATE_ACTION_SETBACK: Final = "setback"
+CLIMATE_ACTION_NONE: Final = "none"
+CLIMATE_ACTIONS: Final = [
+    CLIMATE_ACTION_OFF,
+    CLIMATE_ACTION_ECO,
+    CLIMATE_ACTION_SETBACK,
+    CLIMATE_ACTION_NONE,
+]
+SELECT_CLIMATE_VACANT_DAY: Final = "climate_vacant_day"
+SELECT_CLIMATE_VACANT_NIGHT: Final = "climate_vacant_night"
+DEFAULT_CLIMATE_ACTIONS: Final[dict[str, str]] = {
+    SELECT_CLIMATE_VACANT_DAY: CLIMATE_ACTION_OFF,
+    # Un détecteur peut ne pas voir un dormeur : rien la nuit par défaut.
+    SELECT_CLIMATE_VACANT_NIGHT: CLIMATE_ACTION_NONE,
+}
+
+# Écart de consigne appliqué par l'action « setback »
+CLIMATE_SETBACK: Final = 2.0  # °C
+# Au retour dans la pièce, l'état d'avant l'action n'est rétabli que dans ce délai
+CLIMATE_RESTORE_WINDOW: Final = 7200  # s
+# Modes où la clim n'agit pas sur la température de la pièce
+CLIMATE_IDLE_MODES: Final = frozenset({"off", "fan_only"})
+
+# Ventilateurs pendant que la clim tourne
+FANS_WITH_CLIMATE_NORMAL: Final = "normal"
+FANS_WITH_CLIMATE_MIX: Final = "mix"
+FANS_WITH_CLIMATE_OFF: Final = "off"
+FANS_WITH_CLIMATE_MODES: Final = [
+    FANS_WITH_CLIMATE_NORMAL,
+    FANS_WITH_CLIMATE_MIX,
+    FANS_WITH_CLIMATE_OFF,
+]
