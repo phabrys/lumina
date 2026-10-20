@@ -1,5 +1,9 @@
 # Changelog
 
+## Non publié
+
+- Maintien de présence : une pièce occupée le reste après un redémarrage de Home Assistant si un média (TV, enceinte…) joue toujours, même s'il met quelques secondes à redevenir disponible. Un média qui joue dans une pièce vide ne l'occupe toujours pas.
+
 ## 0.7.0 — 2026-10-20
 
 - Ventilateurs : nouveau réglage « Ventilateurs à allumer », comme pour les lumières. Par défaut, tous les ventilateurs éteints démarrent, même si l'un tourne déjà (avant, Lumina ne touchait à rien) ; l'option « Seulement si aucun n'est allumé » rétablit l'ancien comportement.

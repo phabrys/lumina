@@ -238,13 +238,21 @@ class RoomController:
     # ------------------------------------------------------------------
 
     @callback
+    def restore_occupied(self) -> None:
+        """Pièce occupée avant le redémarrage : le maintien peut prolonger l'occupation."""
+        self.occupied = True
+
+    @callback
     def async_start(self) -> None:
         """Abonne le contrôleur aux changements d'état utiles."""
         self._track([*self.presence, *self.presence_hold], self._on_presence)
         self._track(self.environment_sensors, self._on_environment)
         for group in self.groups.values():
             self._track(group.entity_ids, self._make_actuator_handler(group))
-        self.occupied = self._compute_occupied()
+        # Une occupation restaurée est gardée jusqu'au démarrage complet de
+        # Home Assistant : les médias n'ont peut-être pas encore repris leur état.
+        if not self.occupied:
+            self.occupied = self._compute_occupied()
         self._natural_period = self._compute_natural_period()
         self.period = self._effective_period()
         self._unsubs.append(
@@ -276,6 +284,11 @@ class RoomController:
             )
 
     async def _on_started(self, _hass: HomeAssistant) -> None:
+        if self.occupied and not self._compute_occupied():
+            # Occupation d'avant le redémarrage que rien ne confirme : elle est
+            # levée après la confirmation d'absence, sauf si un média reprend.
+            self._presence_lost()
+            return
         self.async_reevaluate()
 
     # ------------------------------------------------------------------
@@ -850,6 +863,10 @@ class RoomController:
         if not self.occupied:
             self._notify()  # l'état du maintien a pu changer
             return
+        self._presence_lost()
+
+    def _presence_lost(self) -> None:
+        """Plus personne de détecté : la pièce se vide après confirmation."""
         confirm = self.settings[SETTING_VACANCY_CONFIRM]
         if confirm <= 0:
             self._presence_lost_at = self.hass.loop.time()

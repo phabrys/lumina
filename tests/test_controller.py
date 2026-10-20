@@ -9,9 +9,10 @@ from pytest_homeassistant_custom_component.common import (
     async_capture_events,
     async_fire_time_changed,
     async_mock_service,
+    mock_restore_cache,
 )
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
@@ -47,7 +48,7 @@ def daytime(freezer):
     return freezer
 
 
-async def _setup(hass: HomeAssistant, **extra) -> MockConfigEntry:
+def _entry(hass: HomeAssistant, **extra) -> MockConfigEntry:
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Salon",
@@ -61,9 +62,30 @@ async def _setup(hass: HomeAssistant, **extra) -> MockConfigEntry:
         },
     )
     entry.add_to_hass(hass)
+    return entry
+
+
+async def _start(hass: HomeAssistant, entry: MockConfigEntry) -> MockConfigEntry:
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     return entry
+
+
+async def _setup(hass: HomeAssistant, **extra) -> MockConfigEntry:
+    return await _start(hass, _entry(hass, **extra))
+
+
+async def _setup_after_restart(
+    hass: HomeAssistant, occupied: bool, **extra
+) -> MockConfigEntry:
+    """Pièce démarrée avec l'occupation qu'elle avait avant le redémarrage."""
+    entry = _entry(hass, **extra)
+    room = er.async_get(hass).async_get_or_create(
+        "sensor", DOMAIN, f"{entry.entry_id}_room_state", config_entry=entry
+    )
+    state = "occupied" if occupied else "vacant"
+    mock_restore_cache(hass, [State(room.entity_id, state, {"occupied": occupied})])
+    return await _start(hass, entry)
 
 
 def _eid(hass: HomeAssistant, entry: MockConfigEntry, domain: str, key: str) -> str:
@@ -256,6 +278,58 @@ async def test_presence_hold_does_not_start_occupancy(hass: HomeAssistant) -> No
 
     hass.states.async_set(TV, "playing")
     await hass.async_block_till_done()
+
+    assert _room(hass, entry).state == "vacant"
+    assert turn_on == []
+
+
+async def test_presence_hold_survives_restart(hass: HomeAssistant) -> None:
+    turn_off = async_mock_service(hass, "homeassistant", "turn_off")
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LUX, "10")
+    hass.states.async_set(LIGHT, "on")
+    hass.states.async_set(TV, "playing")
+    entry = await _setup_after_restart(hass, True, **{CONF_PRESENCE_HOLD: [TV]})
+
+    assert _room(hass, entry).state == "occupied"
+    await _later(hass, minutes=10)
+    assert _room(hass, entry).state == "occupied"
+    assert turn_off == []
+
+
+async def test_presence_hold_back_late_after_restart(hass: HomeAssistant) -> None:
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LUX, "10")
+    hass.states.async_set(LIGHT, "off")
+    hass.states.async_set(TV, "unavailable")  # intégration pas encore prête
+    entry = await _setup_after_restart(hass, True, **{CONF_PRESENCE_HOLD: [TV]})
+
+    await _later(hass, seconds=10)
+    hass.states.async_set(TV, "playing")
+    await hass.async_block_till_done()
+    await _later(hass, seconds=31)
+    assert _room(hass, entry).state == "occupied"
+
+
+async def test_restored_occupancy_ends_without_hold(hass: HomeAssistant) -> None:
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LUX, "10")
+    hass.states.async_set(LIGHT, "off")
+    hass.states.async_set(TV, "off")
+    entry = await _setup_after_restart(hass, True, **{CONF_PRESENCE_HOLD: [TV]})
+
+    assert _room(hass, entry).attributes["vacancy_pending"] is True
+    await _later(hass, seconds=31)
+    assert _room(hass, entry).state == "vacant"
+
+
+async def test_playing_media_does_not_occupy_after_restart(hass: HomeAssistant) -> None:
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LUX, "10")
+    hass.states.async_set(LIGHT, "off")
+    hass.states.async_set(TV, "playing")
+    entry = await _setup_after_restart(hass, False, **{CONF_PRESENCE_HOLD: [TV]})
 
     assert _room(hass, entry).state == "vacant"
     assert turn_on == []

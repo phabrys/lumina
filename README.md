@@ -36,7 +36,7 @@ Le switch **Nuit maintenant** force le mode nuit tout de suite ; il se désactiv
 
 ### Confort
 
-- **Maintien de présence** : une TV, une enceinte ou une clim active garde la pièce occupée quand les détecteurs ne voient plus personne (devant la TV sans bouger, par exemple). Le maintien prolonge une présence, il ne la déclenche pas.
+- **Maintien de présence** : une TV, une enceinte ou une clim active garde la pièce occupée quand les détecteurs ne voient plus personne (devant la TV sans bouger, par exemple). Le maintien prolonge une présence, il ne la déclenche pas. Une pièce occupée le reste après un redémarrage de Home Assistant tant que le maintien est actif : l'occupation d'avant le redémarrage est reprise, puis levée après la confirmation d'absence si plus rien ne la justifie.
 - **Température ressentie** : avec un capteur d'humidité, les ventilateurs suivent l'indice de chaleur (NOAA) plutôt que la température mesurée. 27 °C à 85 % d'humidité se ressentent comme 30 °C.
 - **Vitesse progressive** : les ventilateurs démarrent à la vitesse minimale (33 %) au seuil, puis montent jusqu'à 100 % sur l'écart réglé (3 °C). Une vitesse minimale à 0 revient au simple marche/arrêt. Changer la vitesse à la main compte comme une reprise manuelle.
 - **Avertissement avant extinction** : les lumières baissent à 20 % pendant 15 s avant de s'éteindre. Un mouvement pendant ce temps rétablit la lumière.
