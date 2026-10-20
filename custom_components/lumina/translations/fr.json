@@ -187,6 +187,9 @@
           "lights_mode": {
             "name": "Lumières à allumer"
           },
+          "fans_mode": {
+            "name": "Ventilateurs à allumer"
+          },
           "daylight_locked": {
             "name": "Allumage suspendu (lumière du jour)"
           },
@@ -243,6 +246,13 @@
         "state": {
           "all": "Toutes",
           "any": "Seulement si aucune n'est allumée"
+        }
+      },
+      "fans_mode": {
+        "name": "Ventilateurs à allumer",
+        "state": {
+          "all": "Tous",
+          "any": "Seulement si aucun n'est allumé"
         }
       }
     },

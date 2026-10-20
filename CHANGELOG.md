@@ -1,5 +1,12 @@
 # Changelog
 
+## Non publié
+
+- Ventilateurs : nouveau réglage « Ventilateurs à allumer », comme pour les lumières. Par défaut, tous les ventilateurs éteints démarrent, même si l'un tourne déjà (avant, Lumina ne touchait à rien) ; l'option « Seulement si aucun n'est allumé » rétablit l'ancien comportement.
+- Journal : les messages suivent la langue de Home Assistant (français ou anglais).
+- Journal : plus d'entrée d'échec au nom d'une pièce déchargée ou rechargée entre-temps.
+- Ajout d'une pièce : les entités sont trouvées via les fonctions de recherche par pièce de Home Assistant.
+
 ## 0.6.1 — 2026-10-20
 
 - Journal : un appel qui échoue côté appareil (script introuvable, entité muette…) est signalé au lieu de passer inaperçu.

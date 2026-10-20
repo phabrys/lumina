@@ -187,6 +187,9 @@
           "lights_mode": {
             "name": "Lights to turn on"
           },
+          "fans_mode": {
+            "name": "Fans to turn on"
+          },
           "daylight_locked": {
             "name": "Turn-on paused (daylight)"
           },
@@ -240,6 +243,13 @@
     "select": {
       "lights_mode": {
         "name": "Lights to turn on",
+        "state": {
+          "all": "All",
+          "any": "Only if none is on"
+        }
+      },
+      "fans_mode": {
+        "name": "Fans to turn on",
         "state": {
           "all": "All",
           "any": "Only if none is on"
