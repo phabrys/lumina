@@ -12,6 +12,7 @@ from homeassistant.components.sensor import (
 from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from . import LuminaConfigEntry
 from .const import ROOM_STATES
@@ -30,7 +31,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class LuminaRoomStateSensor(LuminaEntity, SensorEntity):
+class LuminaRoomStateSensor(LuminaEntity, SensorEntity, RestoreEntity):
     """État de la pièce : occupée, vide ou en contrôle manuel."""
 
     _attr_device_class = SensorDeviceClass.ENUM
@@ -43,6 +44,9 @@ class LuminaRoomStateSensor(LuminaEntity, SensorEntity):
         await super().async_added_to_hass()
         # Les entrées du Journal de Lumina sont rattachées à ce capteur.
         self._controller.state_entity_id = self.entity_id
+        last_state = await self.async_get_last_state()
+        if last_state is not None and last_state.attributes.get("occupied") is True:
+            self._controller.restore_occupied()
 
     @property
     def native_value(self) -> str:
