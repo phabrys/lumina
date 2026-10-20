@@ -68,6 +68,9 @@
       },
       "daylight_off_lux": {
         "default": "mdi:weather-sunny-alert"
+      },
+      "vacancy_confirmation": {
+        "default": "mdi:account-clock-outline"
       }
     },
     "sensor": {

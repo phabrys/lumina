@@ -142,6 +142,7 @@ async def test_lights_dim_then_off_after_delay(hass: HomeAssistant) -> None:
 
     hass.states.async_set(PIR, "off")
     await hass.async_block_till_done()
+    await _later(hass, seconds=31)  # absence confirmée
 
     # Délai écoulé : les lumières baissent d'abord.
     await _later(hass, seconds=121)
@@ -164,6 +165,7 @@ async def test_warning_cancelled_when_presence_returns(hass: HomeAssistant) -> N
 
     hass.states.async_set(PIR, "off")
     await hass.async_block_till_done()
+    await _later(hass, seconds=31)  # absence confirmée
     await _later(hass, seconds=121)
     hass.states.async_set(PIR, "on")
     await hass.async_block_till_done()
@@ -238,6 +240,7 @@ async def test_presence_hold_keeps_room_occupied(hass: HomeAssistant) -> None:
     # TV éteinte : la pièce se vide.
     hass.states.async_set(TV, "off")
     await hass.async_block_till_done()
+    await _later(hass, seconds=31)  # absence confirmée
     assert _room(hass, entry).state == "vacant"
 
 
@@ -285,6 +288,9 @@ async def test_fans_follow_temperature_with_speed(hass: HomeAssistant) -> None:
     hass.states.async_set(FAN, "on", {"percentage": 55}, context=fan_on[0].context)
     hass.states.async_set(TEMP, "25.5")
     await hass.async_block_till_done()
+    # Trop tôt après le démarrage : l'arrêt attend la fin du cycle minimal.
+    assert turn_off == []
+    await _later(hass, seconds=301)
     assert _entities(turn_off) == [[FAN]]
 
 
@@ -579,3 +585,81 @@ async def test_forced_night_ends_without_night_window(hass: HomeAssistant, dayti
     await hass.async_block_till_done()
     assert _room(hass, entry).attributes["period"] == "day"
     assert hass.states.get(_eid(hass, entry, "switch", "forced_night")).state == "off"
+
+
+# ----------------------------------------------------------------------
+# v0.5.0 : absence confirmée, repli sur le soleil, reprises dédoublonnées
+# ----------------------------------------------------------------------
+
+
+async def test_vacancy_needs_confirmation(hass: HomeAssistant) -> None:
+    async_mock_service(hass, "light", "turn_on")
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LUX, "10")
+    hass.states.async_set(LIGHT, "on")
+    entry = await _setup(hass)
+
+    hass.states.async_set(PIR, "off")
+    await hass.async_block_till_done()
+    room = _room(hass, entry)
+    assert room.state == "occupied"
+    assert room.attributes["vacancy_pending"] is True
+
+    await _later(hass, seconds=31)
+    assert _room(hass, entry).state == "vacant"
+
+
+async def test_brief_dropout_keeps_manual_override(hass: HomeAssistant) -> None:
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LUX, "500")
+    hass.states.async_set(LIGHT, "on")
+    entry = await _setup(hass)
+
+    hass.states.async_set(LIGHT, "off")  # extinction à la main
+    await hass.async_block_till_done()
+    assert _room(hass, entry).state == "override"
+
+    # Micro-coupure du détecteur : 10 s sans présence, puis retour.
+    hass.states.async_set(PIR, "off")
+    await hass.async_block_till_done()
+    await _later(hass, seconds=10)
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    await _later(hass, seconds=31)
+
+    room = _room(hass, entry)
+    assert room.state == "override"
+    assert room.attributes["vacancy_pending"] is False
+
+
+@pytest.mark.parametrize(("sun", "expected_calls"), [("above_horizon", 0), ("below_horizon", 1)])
+async def test_unavailable_lux_falls_back_to_sun(
+    hass: HomeAssistant, sun: str, expected_calls: int
+) -> None:
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    hass.states.async_set("sun.sun", sun)
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LUX, "unavailable")
+    hass.states.async_set(LIGHT, "off")
+    await _setup(hass)
+
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert len(turn_on) == expected_calls
+
+
+async def test_simultaneous_changes_make_one_override(hass: HomeAssistant) -> None:
+    entries = async_capture_events(hass, "logbook_entry")
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LUX, "500")
+    hass.states.async_set(LIGHT, "on")
+    hass.states.async_set(LIGHT2, "on")
+    await _setup(hass, **{CONF_LIGHTS: [LIGHT, LIGHT2]})
+
+    # Un script ou un interrupteur coupe les deux lampes à la suite.
+    hass.states.async_set(LIGHT, "off")
+    hass.states.async_set(LIGHT2, "off")
+    await hass.async_block_till_done()
+
+    overrides = [e for e in entries if e.data["message"].startswith("laisse la main")]
+    assert len(overrides) == 1

@@ -39,6 +39,7 @@ SETTING_FAN_SPEED_RANGE: Final = "fan_speed_range"
 SETTING_LIGHT_WARNING: Final = "light_warning_duration"
 SETTING_NIGHT_COLOR_TEMP: Final = "night_color_temp"
 SETTING_DAYLIGHT_OFF_LUX: Final = "daylight_off_lux"
+SETTING_VACANCY_CONFIRM: Final = "vacancy_confirmation"
 
 # Réglages propres à la nuit
 SETTING_NIGHT_BRIGHTNESS: Final = "night_brightness"
@@ -70,7 +71,20 @@ DEFAULT_SETTINGS: Final[dict[str, float]] = {
     # Extinction quand la lumière naturelle suffit (0 = désactivé). À régler
     # au-dessus de ce que mesure le capteur avec les lampes allumées.
     SETTING_DAYLIGHT_OFF_LUX: 0,  # lx
+    # Absence confirmée seulement après ce délai sans présence : évite qu'une
+    # micro-coupure du détecteur vide la pièce (et lève la reprise manuelle).
+    SETTING_VACANCY_CONFIRM: 30,  # s
 }
+
+# Ventilateurs : durée minimale entre deux bascules dues à la température
+FAN_MIN_CYCLE: Final = 300  # s
+
+# Changements d'état rapprochés d'un même groupe = une seule reprise manuelle
+OVERRIDE_DEBOUNCE: Final = 5  # s
+
+# Repli quand le capteur de luminosité ne répond pas
+SUN_ENTITY: Final = "sun.sun"
+SUN_BELOW_HORIZON: Final = "below_horizon"
 
 # Lumière du jour : durée au-dessus du seuil avant extinction, et durée
 # sous le seuil d'allumage avant de réautoriser l'allumage automatique.

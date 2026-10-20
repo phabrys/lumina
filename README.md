@@ -17,9 +17,10 @@ stateDiagram-v2
     Manuel --> Vide : pièce vide\nou fin du délai
 ```
 
-- **Lumières** : allumées à l'arrivée si la luminosité est sous le seuil (toujours, s'il n'y a pas de capteur de luminosité). Éteintes quand la pièce est vide depuis le délai réglé.
-- **Ventilateurs** : allumés quand la pièce est occupée et que la température atteint le seuil, arrêtés 1 °C en dessous (hystérésis). Sans capteur de température, ils suivent simplement la présence.
-- **Contrôle manuel** : allumer ou éteindre une lumière ou un ventilateur à la main suspend l'automatisme de ce groupe pendant la durée réglée. La reprise manuelle est levée dès que la pièce se vide.
+- **Présence** : la pièce n'est considérée vide qu'après un court délai sans détection (30 s par défaut). Une micro-coupure du détecteur n'éteint donc rien et ne lève pas le contrôle manuel. Les délais d'extinction restent comptés depuis la fin réelle de présence.
+- **Lumières** : allumées à l'arrivée si la luminosité est sous le seuil (toujours, s'il n'y a pas de capteur de luminosité). Si le capteur choisi ne répond pas, Lumina se fie au soleil (`sun.sun`) : allumage seulement s'il est couché. Éteintes quand la pièce est vide depuis le délai réglé.
+- **Ventilateurs** : allumés quand la pièce est occupée et que la température atteint le seuil, arrêtés 1 °C en dessous (hystérésis), avec au moins 5 min entre deux bascules dues à la température. Sans capteur de température, ils suivent simplement la présence.
+- **Contrôle manuel** : allumer ou éteindre une lumière ou un ventilateur à la main suspend l'automatisme de ce groupe pendant la durée réglée. Plusieurs changements en moins de 5 s (deux lampes, extinction + vitesse) comptent pour un seul geste. La reprise manuelle est levée dès que la pièce est confirmée vide.
 
 ### Mode nuit
 
@@ -58,6 +59,7 @@ Les lumières et ventilateurs peuvent aussi être des prises (`switch`), par exe
 | `number.…_delai_d_extinction_des_lumieres` | En secondes (défaut 120) |
 | `number.…_delai_d_arret_des_ventilateurs` | En secondes (défaut 300) |
 | `number.…_duree_du_controle_manuel` | En minutes (défaut 30, 0 pour désactiver) |
+| `number.…_confirmation_d_absence` | En secondes (défaut 30, 0 = immédiat) |
 | `number.…_luminosite_des_lumieres_jour` | En % (défaut 100) |
 | `time.…_debut_de_la_nuit` / `time.…_fin_de_la_nuit` | Plage de nuit (défaut 22:00 → 07:00) |
 | `number.…_luminosite_des_lumieres_nuit` | En % (défaut 30, 0 = pas d'allumage la nuit) |

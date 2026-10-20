@@ -133,6 +133,9 @@
       },
       "daylight_off_lux": {
         "name": "Daylight lights-off level"
+      },
+      "vacancy_confirmation": {
+        "name": "Vacancy confirmation"
       }
     },
     "sensor": {
@@ -186,6 +189,9 @@
           },
           "daylight_locked": {
             "name": "Turn-on paused (daylight)"
+          },
+          "vacancy_pending": {
+            "name": "Vacancy pending confirmation"
           }
         }
       },

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 — 2026-10-20
+
+Corrections issues de l'observation du Journal en conditions réelles.
+
+- Absence confirmée après un délai réglable (30 s par défaut) : les micro-coupures des détecteurs ne vident plus la pièce et ne lèvent plus le contrôle manuel. Les délais d'extinction restent comptés depuis la fin réelle de présence.
+- Capteur de luminosité indisponible : repli sur la position du soleil au lieu de considérer la pièce sombre.
+- Ventilateurs : au moins 5 min entre deux bascules marche/arrêt dues à la température.
+- Changements rapprochés d'un même groupe (moins de 5 s) : une seule reprise manuelle.
+
 ## 0.4.0 — 2026-10-18
 
 - Extinction des lumières quand la lumière naturelle suffit, avec verrou anti-oscillation.

@@ -39,6 +39,7 @@ from .const import (
     SETTING_NIGHT_TEMP_THRESHOLD,
     SETTING_OVERRIDE_DURATION,
     SETTING_TEMP_THRESHOLD,
+    SETTING_VACANCY_CONFIRM,
 )
 from .controller import RoomController
 from .entity import LuminaEntity
@@ -161,6 +162,16 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
         requires="temperature",
+    ),
+    LuminaNumberDescription(
+        key=SETTING_VACANCY_CONFIRM,
+        translation_key=SETTING_VACANCY_CONFIRM,
+        native_min_value=0,
+        native_max_value=600,
+        native_step=5,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        mode=NumberMode.BOX,
+        entity_category=EntityCategory.CONFIG,
     ),
     LuminaNumberDescription(
         key=SETTING_DAYLIGHT_OFF_LUX,
