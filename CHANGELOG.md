@@ -1,6 +1,6 @@
 # Changelog
 
-## Non publié
+## 0.8.0 — 2026-10-20
 
 - Clims : nouvelles entités de pièce. Lumina ne les allume jamais ; quand la pièce est vide depuis le délai réglé (15 min), il les éteint, les passe en eco ou relève leur consigne de 2 °C (réglable le jour et la nuit ; rien la nuit par défaut), puis rétablit leur état si quelqu'un revient dans les 2 h.
 - Ventilateurs pendant la clim : selon la température (comme avant), en brassage à vitesse fixe, ou arrêtés.
