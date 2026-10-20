@@ -1,5 +1,9 @@
 # Changelog
 
+## Non publié
+
+- Journal : un appel qui échoue côté appareil (script introuvable, entité muette…) est signalé au lieu de passer inaperçu.
+
 ## 0.6.0 — 2026-10-20
 
 Préparation de la carte [Lumina Card](https://github.com/phabrys/lumina-card).
