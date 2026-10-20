@@ -18,6 +18,15 @@
         "state": {
           "off": "mdi:weather-sunny"
         }
+      },
+      "auto_climate": {
+        "default": "mdi:air-conditioner",
+        "state": {
+          "off": "mdi:snowflake-off"
+        }
+      },
+      "night_override_until_morning": {
+        "default": "mdi:weather-night"
       }
     },
     "number": {
@@ -71,6 +80,12 @@
       },
       "vacancy_confirmation": {
         "default": "mdi:account-clock-outline"
+      },
+      "climate_vacant_delay": {
+        "default": "mdi:timer-sand"
+      },
+      "fan_mix_speed": {
+        "default": "mdi:fan-speed-1"
       }
     },
     "sensor": {
@@ -105,6 +120,15 @@
         "state": {
           "any": "mdi:fan-off"
         }
+      },
+      "climate_vacant_day": {
+        "default": "mdi:air-conditioner"
+      },
+      "climate_vacant_night": {
+        "default": "mdi:snowflake-thermometer"
+      },
+      "fans_with_climate": {
+        "default": "mdi:fan"
       }
     },
     "button": {

@@ -1,5 +1,11 @@
 # Changelog
 
+## Non publié
+
+- Clims : nouvelles entités de pièce. Lumina ne les allume jamais ; quand la pièce est vide depuis le délai réglé (15 min), il les éteint, les passe en eco ou relève leur consigne de 2 °C (réglable le jour et la nuit ; rien la nuit par défaut), puis rétablit leur état si quelqu'un revient dans les 2 h.
+- Ventilateurs pendant la clim : selon la température (comme avant), en brassage à vitesse fixe, ou arrêtés.
+- Nuit : un geste manuel tient jusqu'à la fin de la nuit au lieu de la durée réglée. Une lumière éteinte au coucher ne se rallume plus au bout de 30 min. Désactivable avec le switch « Contrôle manuel jusqu'au matin ».
+
 ## 0.7.1 — 2026-10-20
 
 - Maintien de présence : une pièce occupée le reste après un redémarrage de Home Assistant si un média (TV, enceinte…) joue toujours, même s'il met quelques secondes à redevenir disponible. Un média qui joue dans une pièce vide ne l'occupe toujours pas.

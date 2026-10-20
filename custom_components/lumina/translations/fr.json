@@ -16,6 +16,7 @@
           "lights": "Lumières",
           "illuminance_sensor": "Capteur de luminosité",
           "fans": "Ventilateurs",
+          "climates": "Clims",
           "temperature_sensor": "Capteur de température",
           "presence_hold": "Maintien de présence",
           "humidity_sensor": "Capteur d'humidité"
@@ -25,15 +26,17 @@
           "lights": "Allumées à l'arrivée si la pièce est sombre.",
           "illuminance_sensor": "Sans capteur, la pièce est toujours considérée sombre.",
           "fans": "Allumés à l'arrivée si la température dépasse le seuil.",
+          "climates": "Lumina ne les allume jamais. Pièce vide : arrêt, eco ou consigne relevée selon le réglage, puis retour à l'état d'avant quand quelqu'un revient.",
           "temperature_sensor": "Sans capteur, les ventilateurs suivent uniquement la présence.",
-          "presence_hold": "TV, enceinte, clim… : tant qu'une de ces entités est active, la pièce reste occupée même si les détecteurs ne voient plus personne.",
+          "presence_hold": "TV, enceinte… : tant qu'une de ces entités est active, la pièce reste occupée même si les détecteurs ne voient plus personne.",
           "humidity_sensor": "Avec l'humidité, les ventilateurs suivent la température ressentie plutôt que la température mesurée."
         }
       }
     },
     "error": {
       "no_presence": "Choisis au moins un capteur de présence.",
-      "no_actuator": "Choisis au moins une lumière ou un ventilateur."
+      "no_actuator": "Choisis au moins une lumière, un ventilateur ou une clim.",
+      "climate_in_hold": "Une clim gérée par Lumina ne peut pas aussi maintenir la présence : la pièce ne se viderait jamais."
     },
     "abort": {
       "already_configured": "Cette pièce est déjà gérée par Lumina."
@@ -48,6 +51,7 @@
           "lights": "Lumières",
           "illuminance_sensor": "Capteur de luminosité",
           "fans": "Ventilateurs",
+          "climates": "Clims",
           "temperature_sensor": "Capteur de température",
           "presence_hold": "Maintien de présence",
           "humidity_sensor": "Capteur d'humidité"
@@ -57,15 +61,17 @@
           "lights": "Allumées à l'arrivée si la pièce est sombre.",
           "illuminance_sensor": "Sans capteur, la pièce est toujours considérée sombre.",
           "fans": "Allumés à l'arrivée si la température dépasse le seuil.",
+          "climates": "Lumina ne les allume jamais. Pièce vide : arrêt, eco ou consigne relevée selon le réglage, puis retour à l'état d'avant quand quelqu'un revient.",
           "temperature_sensor": "Sans capteur, les ventilateurs suivent uniquement la présence.",
-          "presence_hold": "TV, enceinte, clim… : tant qu'une de ces entités est active, la pièce reste occupée même si les détecteurs ne voient plus personne.",
+          "presence_hold": "TV, enceinte… : tant qu'une de ces entités est active, la pièce reste occupée même si les détecteurs ne voient plus personne.",
           "humidity_sensor": "Avec l'humidité, les ventilateurs suivent la température ressentie plutôt que la température mesurée."
         }
       }
     },
     "error": {
       "no_presence": "Choisis au moins un capteur de présence.",
-      "no_actuator": "Choisis au moins une lumière ou un ventilateur."
+      "no_actuator": "Choisis au moins une lumière, un ventilateur ou une clim.",
+      "climate_in_hold": "Une clim gérée par Lumina ne peut pas aussi maintenir la présence : la pièce ne se viderait jamais."
     }
   },
   "entity": {
@@ -83,6 +89,12 @@
             "name": "Jusqu'à"
           }
         }
+      },
+      "auto_climate": {
+        "name": "Gestion auto de la clim"
+      },
+      "night_override_until_morning": {
+        "name": "Contrôle manuel jusqu'au matin (nuit)"
       }
     },
     "number": {
@@ -136,6 +148,12 @@
       },
       "vacancy_confirmation": {
         "name": "Confirmation d'absence"
+      },
+      "climate_vacant_delay": {
+        "name": "Délai avant action sur la clim"
+      },
+      "fan_mix_speed": {
+        "name": "Vitesse de brassage"
       }
     },
     "sensor": {
@@ -225,6 +243,27 @@
           },
           "fans": {
             "name": "Ventilateurs"
+          },
+          "climate_override_until": {
+            "name": "Contrôle manuel de la clim jusqu'à"
+          },
+          "climate_running": {
+            "name": "Clim en marche"
+          },
+          "climate_vacant_action": {
+            "name": "Action sur la clim en pièce vide"
+          },
+          "climate_vacant_at": {
+            "name": "Action sur la clim à"
+          },
+          "climate_vacant_applied": {
+            "name": "Action appliquée à la clim"
+          },
+          "fans_with_climate": {
+            "name": "Ventilateurs pendant la clim"
+          },
+          "climates": {
+            "name": "Clims"
           }
         }
       },
@@ -253,6 +292,32 @@
         "state": {
           "all": "Tous",
           "any": "Seulement si aucun n'est allumé"
+        }
+      },
+      "climate_vacant_day": {
+        "name": "Clim en pièce vide (jour)",
+        "state": {
+          "off": "Éteindre",
+          "eco": "Mode eco",
+          "setback": "Relever la consigne de 2 °C",
+          "none": "Ne rien faire"
+        }
+      },
+      "climate_vacant_night": {
+        "name": "Clim en pièce vide (nuit)",
+        "state": {
+          "off": "Éteindre",
+          "eco": "Mode eco",
+          "setback": "Relever la consigne de 2 °C",
+          "none": "Ne rien faire"
+        }
+      },
+      "fans_with_climate": {
+        "name": "Ventilateurs pendant la clim",
+        "state": {
+          "normal": "Selon la température",
+          "mix": "Brassage",
+          "off": "Arrêtés"
         }
       }
     },

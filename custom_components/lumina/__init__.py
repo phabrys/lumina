@@ -8,13 +8,25 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_FANS, CONF_LIGHTS, CONF_PRESENCE, CONF_PRESENCE_HOLD
+from .const import (
+    CONF_CLIMATES,
+    CONF_FANS,
+    CONF_LIGHTS,
+    CONF_PRESENCE,
+    CONF_PRESENCE_HOLD,
+)
 from .controller import RoomController
 
 _LOGGER = logging.getLogger(__name__)
 
 # Champs de configuration qui contiennent une liste d'entités
-_LIST_FIELDS = (CONF_PRESENCE, CONF_PRESENCE_HOLD, CONF_LIGHTS, CONF_FANS)
+_LIST_FIELDS = (
+    CONF_PRESENCE,
+    CONF_PRESENCE_HOLD,
+    CONF_LIGHTS,
+    CONF_FANS,
+    CONF_CLIMATES,
+)
 
 PLATFORMS: list[Platform] = [
     Platform.BUTTON,

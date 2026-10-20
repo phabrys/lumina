@@ -22,6 +22,7 @@ from homeassistant.helpers import (
 
 from .const import (
     CONF_AREA,
+    CONF_CLIMATES,
     CONF_FANS,
     CONF_HUMIDITY,
     CONF_ILLUMINANCE,
@@ -60,6 +61,7 @@ def _discover(hass: HomeAssistant, area_id: str) -> dict[str, Any]:
     hold: list[str] = []
     lights: list[str] = []
     fans: list[str] = []
+    climates: list[str] = []
     illuminance: str | None = None
     temperature: str | None = None
     humidity: str | None = None
@@ -72,6 +74,8 @@ def _discover(hass: HomeAssistant, area_id: str) -> dict[str, Any]:
             lights.append(entry.entity_id)
         elif entry.domain == "fan":
             fans.append(entry.entity_id)
+        elif entry.domain == "climate":
+            climates.append(entry.entity_id)
         elif entry.domain == "sensor" and device_class == "illuminance":
             illuminance = illuminance or entry.entity_id
         elif entry.domain == "sensor" and device_class == "temperature":
@@ -86,6 +90,7 @@ def _discover(hass: HomeAssistant, area_id: str) -> dict[str, Any]:
         CONF_PRESENCE_HOLD: hold,
         CONF_LIGHTS: lights,
         CONF_FANS: fans,
+        CONF_CLIMATES: climates,
     }
     if illuminance:
         defaults[CONF_ILLUMINANCE] = illuminance
@@ -143,6 +148,11 @@ def _entities_schema(defaults: dict[str, Any]) -> vol.Schema:
                     )
                 )
             ),
+            vol.Optional(CONF_CLIMATES, description=suggested(CONF_CLIMATES)): (
+                selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="climate", multiple=True)
+                )
+            ),
             vol.Optional(CONF_TEMPERATURE, description=suggested(CONF_TEMPERATURE)): (
                 selector.EntitySelector(
                     selector.EntitySelectorConfig(
@@ -165,8 +175,14 @@ def _validate(user_input: dict[str, Any]) -> dict[str, str]:
     errors: dict[str, str] = {}
     if not user_input.get(CONF_PRESENCE):
         errors[CONF_PRESENCE] = "no_presence"
-    if not user_input.get(CONF_LIGHTS) and not user_input.get(CONF_FANS):
+    if not any(user_input.get(key) for key in (CONF_LIGHTS, CONF_FANS, CONF_CLIMATES)):
         errors["base"] = "no_actuator"
+    # Une clim gérée ne peut pas maintenir la présence : la pièce ne se
+    # viderait jamais et la clim ne s'arrêterait jamais.
+    elif set(user_input.get(CONF_CLIMATES) or []) & set(
+        user_input.get(CONF_PRESENCE_HOLD) or []
+    ):
+        errors[CONF_PRESENCE_HOLD] = "climate_in_hold"
     return errors
 
 

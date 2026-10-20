@@ -22,12 +22,15 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import LuminaConfigEntry
 from .const import (
+    KIND_CLIMATE,
     KIND_FANS,
     KIND_LIGHTS,
+    SETTING_CLIMATE_VACANT_DELAY,
     SETTING_DAY_BRIGHTNESS,
     SETTING_DAY_COLOR_TEMP,
     SETTING_DAYLIGHT_OFF_LUX,
     SETTING_FAN_MIN_SPEED,
+    SETTING_FAN_MIX_SPEED,
     SETTING_FAN_OFF_DELAY,
     SETTING_FAN_SPEED_RANGE,
     SETTING_LIGHT_OFF_DELAY,
@@ -52,6 +55,14 @@ def _has_lights(controller: RoomController) -> bool:
 
 def _has_fans(controller: RoomController) -> bool:
     return bool(controller.groups[KIND_FANS].entity_ids)
+
+
+def _has_climates(controller: RoomController) -> bool:
+    return bool(controller.groups[KIND_CLIMATE].entity_ids)
+
+
+def _has_climates_and_fans(controller: RoomController) -> bool:
+    return _has_climates(controller) and _has_fans(controller)
 
 
 def _has_illuminance(controller: RoomController) -> bool:
@@ -256,6 +267,29 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
         requires=_has_lights,
+    ),
+    # --- Clim ---
+    LuminaNumberDescription(
+        key=SETTING_CLIMATE_VACANT_DELAY,
+        translation_key=SETTING_CLIMATE_VACANT_DELAY,
+        native_min_value=0,
+        native_max_value=7200,
+        native_step=60,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        mode=NumberMode.BOX,
+        entity_category=EntityCategory.CONFIG,
+        requires=_has_climates,
+    ),
+    LuminaNumberDescription(
+        key=SETTING_FAN_MIX_SPEED,
+        translation_key=SETTING_FAN_MIX_SPEED,
+        native_min_value=10,
+        native_max_value=100,
+        native_step=1,
+        native_unit_of_measurement=PERCENTAGE,
+        mode=NumberMode.SLIDER,
+        entity_category=EntityCategory.CONFIG,
+        requires=_has_climates_and_fans,
     ),
 )
 
