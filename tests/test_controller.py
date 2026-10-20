@@ -11,6 +11,7 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
@@ -713,3 +714,26 @@ async def test_resume_button_ends_override(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
     assert _room(hass, entry).state == "occupied"
     assert _entities(turn_on) == [[LIGHT]]  # pièce sombre : lumière rallumée
+
+
+async def test_failed_service_call_is_logged(hass: HomeAssistant) -> None:
+    async def _broken(call) -> None:
+        raise HomeAssistantError("Action script.maj_ventilateur not found")
+
+    hass.services.async_register("fan", "turn_on", _broken)
+    entries = async_capture_events(hass, "logbook_entry")
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LUX, "500")
+    hass.states.async_set(LIGHT, "off")
+    hass.states.async_set(TEMP, "28")
+    hass.states.async_set(FAN, "off")
+    await _setup(hass, **{CONF_FANS: [FAN], CONF_TEMPERATURE: TEMP})
+
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+
+    failures = [e for e in entries if e.data["message"].startswith("échec")]
+    assert len(failures) == 1
+    assert "fan.turn_on" in failures[0].data["message"]
+    assert FAN in failures[0].data["message"]
+    assert "not found" in failures[0].data["message"]

@@ -989,14 +989,36 @@ class RoomController:
     ) -> None:
         _LOGGER.debug("%s : %s.%s %s %s", self.name, domain, service, entity_ids, data)
         self.hass.async_create_task(
-            self.hass.services.async_call(
+            self._async_service(domain, service, entity_ids, context, data)
+        )
+
+    async def _async_service(
+        self,
+        domain: str,
+        service: str,
+        entity_ids: list[str],
+        context: Context,
+        data: dict[str, Any],
+    ) -> None:
+        # Appel bloquant dans une tâche à part : Lumina n'attend pas, mais
+        # l'échec d'une entité (script introuvable, appareil muet…) remonte ici.
+        try:
+            await self.hass.services.async_call(
                 domain,
                 service,
                 {ATTR_ENTITY_ID: entity_ids, **data},
-                blocking=False,
+                blocking=True,
                 context=context,
             )
-        )
+        except Exception as err:  # noqa: BLE001 - toute erreur doit être signalée
+            _LOGGER.warning(
+                "%s : échec de %s.%s sur %s : %s",
+                self.name, domain, service, ", ".join(entity_ids), err,
+            )
+            self._log(
+                f"échec de {domain}.{service} sur {', '.join(entity_ids)} : {err}",
+                throttle=f"error:{domain}.{service}",
+            )
 
     def _log(self, message: str, *, throttle: str | None = None) -> None:
         """Ajoute une entrée au Journal de Home Assistant.
