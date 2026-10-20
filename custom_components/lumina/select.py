@@ -1,4 +1,4 @@
-"""Choix du comportement des lumières quand la pièce en compte plusieurs."""
+"""Choix du comportement quand la pièce compte plusieurs lumières ou ventilateurs."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from . import LuminaConfigEntry
-from .const import KIND_LIGHTS, LIGHTS_MODES
+from .const import KIND_FANS, KIND_LIGHTS, MODES
 from .entity import LuminaEntity
 
 
@@ -18,28 +18,33 @@ async def async_setup_entry(
     entry: LuminaConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    if entry.runtime_data.groups[KIND_LIGHTS].entity_ids:
-        async_add_entities([LuminaLightsModeSelect(entry)])
+    groups = entry.runtime_data.groups
+    async_add_entities(
+        LuminaModeSelect(entry, kind)
+        for kind in (KIND_LIGHTS, KIND_FANS)
+        if groups[kind].entity_ids
+    )
 
 
-class LuminaLightsModeSelect(LuminaEntity, SelectEntity, RestoreEntity):
-    """Toutes les lumières, ou seulement si aucune n'est déjà allumée."""
+class LuminaModeSelect(LuminaEntity, SelectEntity, RestoreEntity):
+    """Tous les actionneurs du groupe, ou seulement si aucun n'est déjà allumé."""
 
-    _attr_options = LIGHTS_MODES
+    _attr_options = MODES
     _attr_entity_category = EntityCategory.CONFIG
 
-    def __init__(self, entry: LuminaConfigEntry) -> None:
-        super().__init__(entry, "lights_mode")
+    def __init__(self, entry: LuminaConfigEntry, kind: str) -> None:
+        super().__init__(entry, f"{kind}_mode")
+        self._kind = kind
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
         last_state = await self.async_get_last_state()
-        if last_state is not None and last_state.state in LIGHTS_MODES:
-            self._controller.set_lights_mode(last_state.state, reevaluate=False)
+        if last_state is not None and last_state.state in MODES:
+            self._controller.set_mode(self._kind, last_state.state, reevaluate=False)
 
     @property
     def current_option(self) -> str:
-        return self._controller.lights_mode
+        return self._controller.groups[self._kind].mode
 
     async def async_select_option(self, option: str) -> None:
-        self._controller.set_lights_mode(option)
+        self._controller.set_mode(self._kind, option)

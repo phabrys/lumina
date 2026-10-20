@@ -39,18 +39,19 @@ HOLD_DOMAINS = ["media_player", "binary_sensor", "switch", "input_boolean", "rem
 def _area_entities(hass: HomeAssistant, area_id: str) -> list[er.RegistryEntry]:
     """Entités rattachées à la pièce, directement ou via leur appareil."""
     ent_reg = er.async_get(hass)
-    dev_reg = dr.async_get(hass)
-    entries: list[er.RegistryEntry] = []
-    for entry in ent_reg.entities.values():
-        if entry.disabled_by is not None or entry.entity_category is not None:
-            continue
-        entity_area = entry.area_id
-        if entity_area is None and entry.device_id is not None:
-            device = dev_reg.async_get(entry.device_id)
-            entity_area = device.area_id if device else None
-        if entity_area == area_id:
-            entries.append(entry)
-    return entries
+    entries = er.async_entries_for_area(ent_reg, area_id)
+    for device in dr.async_entries_for_area(dr.async_get(hass), area_id):
+        # Une entité affectée à une autre pièce que son appareil n'en fait pas partie.
+        entries.extend(
+            entry
+            for entry in er.async_entries_for_device(ent_reg, device.id)
+            if entry.area_id is None
+        )
+    return [
+        entry
+        for entry in entries
+        if entry.disabled_by is None and entry.entity_category is None
+    ]
 
 
 def _discover(hass: HomeAssistant, area_id: str) -> dict[str, Any]:

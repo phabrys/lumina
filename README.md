@@ -41,9 +41,9 @@ Le switch **Nuit maintenant** force le mode nuit tout de suite ; il se désactiv
 - **Vitesse progressive** : les ventilateurs démarrent à la vitesse minimale (33 %) au seuil, puis montent jusqu'à 100 % sur l'écart réglé (3 °C). Une vitesse minimale à 0 revient au simple marche/arrêt. Changer la vitesse à la main compte comme une reprise manuelle.
 - **Avertissement avant extinction** : les lumières baissent à 20 % pendant 15 s avant de s'éteindre. Un mouvement pendant ce temps rétablit la lumière.
 - **Teinte** : 4000 K le jour, 2700 K la nuit, pour les lumières à blanc réglable (0 = ne pas modifier).
-- **Journal** : chaque décision apparaît dans le Journal avec sa raison, par exemple « allume les lumières à 30 % (nuit, 12 lx) ». Les ajustements de vitesse fréquents sont regroupés (une entrée toutes les 10 min au plus).
+- **Journal** : chaque décision apparaît dans le Journal avec sa raison, dans la langue de Home Assistant (français ou anglais), par exemple « allume les lumières à 30 % (nuit, 12 lx) ». Les ajustements de vitesse fréquents sont regroupés (une entrée toutes les 10 min au plus).
 - **Lumière du jour** : avec un seuil d'extinction réglé, les lumières s'éteignent quand le capteur mesure au moins cette valeur pendant 5 min. Règle-le **au-dessus** de ce que mesure le capteur lampes allumées, sinon la lampe s'éteindrait d'elle-même. Après une telle extinction, l'allumage automatique ne reprend qu'après 10 min sous le seuil d'allumage, ou quand la pièce se vide.
-- **Plusieurs lumières** : par défaut, Lumina allume toutes les lumières éteintes de la pièce ; l'option « Seulement si aucune n'est allumée » respecte une lampe déjà allumée.
+- **Plusieurs lumières ou ventilateurs** : par défaut, Lumina allume toutes les lumières (ou tous les ventilateurs) éteints de la pièce ; l'option « Seulement si aucune n'est allumée » (« aucun » pour les ventilateurs) respecte un appareil déjà allumé.
 
 Les lumières et ventilateurs peuvent aussi être des prises (`switch`), par exemple un ventilateur branché sur une prise Zigbee.
 
@@ -51,7 +51,7 @@ Les lumières et ventilateurs peuvent aussi être des prises (`switch`), par exe
 
 | Entité | Rôle |
 |---|---|
-| `sensor.lumina_<pièce>_etat_de_la_piece` | Occupée / Vide / Contrôle manuel |
+| `sensor.<pièce>_lumina_etat_de_la_piece` | Occupée / Vide / Contrôle manuel |
 | `switch.…_gestion_auto_des_lumieres` | Active ou suspend l'automatisme des lumières |
 | `switch.…_gestion_auto_des_ventilateurs` | Active ou suspend l'automatisme des ventilateurs |
 | `number.…_seuil_de_luminosite` | Seuil en lx (défaut 50) |
@@ -74,6 +74,7 @@ Les lumières et ventilateurs peuvent aussi être des prises (`switch`), par exe
 | `number.…_teinte_des_lumieres_jour` / `…_nuit` | En K (défaut 4000 / 2700, 0 = ne pas modifier) |
 | `number.…_extinction_a_la_lumiere_du_jour` | En lx (défaut 0 = désactivé) |
 | `select.…_lumieres_a_allumer` | Toutes / Seulement si aucune n'est allumée |
+| `select.…_ventilateurs_a_allumer` | Tous / Seulement si aucun n'est allumé |
 | `button.…_reprendre_l_automatisme` | Met fin au contrôle manuel tout de suite |
 
 Les réglages n'apparaissent que s'ils ont un sens pour la pièce (pas de seuil de luminosité sans capteur, etc.) et sont conservés au redémarrage.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from homeassistant.components.number import (
@@ -45,11 +46,27 @@ from .controller import RoomController
 from .entity import LuminaEntity
 
 
+def _has_lights(controller: RoomController) -> bool:
+    return bool(controller.groups[KIND_LIGHTS].entity_ids)
+
+
+def _has_fans(controller: RoomController) -> bool:
+    return bool(controller.groups[KIND_FANS].entity_ids)
+
+
+def _has_illuminance(controller: RoomController) -> bool:
+    return controller.illuminance is not None and _has_lights(controller)
+
+
+def _has_temperature(controller: RoomController) -> bool:
+    return controller.temperature is not None and _has_fans(controller)
+
+
 @dataclass(frozen=True, kw_only=True)
 class LuminaNumberDescription(NumberEntityDescription):
     """Description d'un réglage, avec sa condition d'existence."""
 
-    requires: str | None = None
+    requires: Callable[[RoomController], bool] | None = None
 
 
 NUMBERS: tuple[LuminaNumberDescription, ...] = (
@@ -62,7 +79,7 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         native_unit_of_measurement=LIGHT_LUX,
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
-        requires="illuminance",
+        requires=_has_illuminance,
     ),
     LuminaNumberDescription(
         key=SETTING_LIGHT_OFF_DELAY,
@@ -73,7 +90,7 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.SECONDS,
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
-        requires=KIND_LIGHTS,
+        requires=_has_lights,
     ),
     LuminaNumberDescription(
         key=SETTING_FAN_OFF_DELAY,
@@ -84,7 +101,7 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.SECONDS,
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
-        requires=KIND_FANS,
+        requires=_has_fans,
     ),
     LuminaNumberDescription(
         key=SETTING_TEMP_THRESHOLD,
@@ -95,7 +112,7 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
-        requires="temperature",
+        requires=_has_temperature,
     ),
     LuminaNumberDescription(
         key=SETTING_OVERRIDE_DURATION,
@@ -116,7 +133,7 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         mode=NumberMode.SLIDER,
         entity_category=EntityCategory.CONFIG,
-        requires=KIND_LIGHTS,
+        requires=_has_lights,
     ),
     # --- Nuit ---
     LuminaNumberDescription(
@@ -128,7 +145,7 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         mode=NumberMode.SLIDER,
         entity_category=EntityCategory.CONFIG,
-        requires=KIND_LIGHTS,
+        requires=_has_lights,
     ),
     LuminaNumberDescription(
         key=SETTING_NIGHT_LIGHT_OFF_DELAY,
@@ -139,7 +156,7 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.SECONDS,
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
-        requires=KIND_LIGHTS,
+        requires=_has_lights,
     ),
     LuminaNumberDescription(
         key=SETTING_NIGHT_FAN_OFF_DELAY,
@@ -150,7 +167,7 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.SECONDS,
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
-        requires=KIND_FANS,
+        requires=_has_fans,
     ),
     LuminaNumberDescription(
         key=SETTING_NIGHT_TEMP_THRESHOLD,
@@ -161,7 +178,7 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
-        requires="temperature",
+        requires=_has_temperature,
     ),
     LuminaNumberDescription(
         key=SETTING_VACANCY_CONFIRM,
@@ -182,7 +199,7 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         native_unit_of_measurement=LIGHT_LUX,
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
-        requires="illuminance",
+        requires=_has_illuminance,
     ),
     # --- Confort ---
     LuminaNumberDescription(
@@ -194,7 +211,7 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         mode=NumberMode.SLIDER,
         entity_category=EntityCategory.CONFIG,
-        requires="temperature",
+        requires=_has_temperature,
     ),
     LuminaNumberDescription(
         key=SETTING_FAN_SPEED_RANGE,
@@ -205,7 +222,7 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
-        requires="temperature",
+        requires=_has_temperature,
     ),
     LuminaNumberDescription(
         key=SETTING_LIGHT_WARNING,
@@ -216,7 +233,7 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.SECONDS,
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
-        requires=KIND_LIGHTS,
+        requires=_has_lights,
     ),
     LuminaNumberDescription(
         key=SETTING_DAY_COLOR_TEMP,
@@ -227,7 +244,7 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         native_unit_of_measurement=UnitOfTemperature.KELVIN,
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
-        requires=KIND_LIGHTS,
+        requires=_has_lights,
     ),
     LuminaNumberDescription(
         key=SETTING_NIGHT_COLOR_TEMP,
@@ -238,23 +255,9 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         native_unit_of_measurement=UnitOfTemperature.KELVIN,
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
-        requires=KIND_LIGHTS,
+        requires=_has_lights,
     ),
 )
-
-
-def _is_relevant(controller: RoomController, requires: str | None) -> bool:
-    if requires is None:
-        return True
-    if requires == "illuminance":
-        return controller.illuminance is not None and bool(
-            controller.groups[KIND_LIGHTS].entity_ids
-        )
-    if requires == "temperature":
-        return controller.temperature is not None and bool(
-            controller.groups[KIND_FANS].entity_ids
-        )
-    return bool(controller.groups[requires].entity_ids)
 
 
 async def async_setup_entry(
@@ -266,7 +269,7 @@ async def async_setup_entry(
     async_add_entities(
         LuminaNumber(entry, description)
         for description in NUMBERS
-        if _is_relevant(controller, description.requires)
+        if description.requires is None or description.requires(controller)
     )
 
 

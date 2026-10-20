@@ -1,5 +1,6 @@
 """Tests du comportement d'une pièce."""
 
+import asyncio
 from datetime import timedelta
 
 import pytest
@@ -737,3 +738,80 @@ async def test_failed_service_call_is_logged(hass: HomeAssistant) -> None:
     assert "fan.turn_on" in failures[0].data["message"]
     assert FAN in failures[0].data["message"]
     assert "not found" in failures[0].data["message"]
+
+
+async def test_logbook_follows_language(hass: HomeAssistant) -> None:
+    hass.config.language = "en"
+    async_mock_service(hass, "light", "turn_on")
+    entries = async_capture_events(hass, "logbook_entry")
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LUX, "10")
+    hass.states.async_set(LIGHT, "off")
+    await _setup(hass)
+
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+
+    assert entries[-1].data["message"] == "turns on the lights at 100 % (day, 10 lx)"
+
+
+async def test_no_logbook_after_unload(hass: HomeAssistant) -> None:
+    release = asyncio.Event()
+
+    async def _slow_failure(call) -> None:
+        await release.wait()
+        raise HomeAssistantError("appareil muet")
+
+    hass.services.async_register("light", "turn_on", _slow_failure)
+    entries = async_capture_events(hass, "logbook_entry")
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LUX, "10")
+    hass.states.async_set(LIGHT, "off")
+    entry = await _setup(hass)
+
+    hass.states.async_set(PIR, "on")
+    await asyncio.sleep(0)  # l'appel est en cours, bloqué sur l'appareil
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    release.set()
+    await hass.async_block_till_done()
+
+    assert not [e for e in entries if e.data["message"].startswith("échec")]
+
+
+FAN2 = "fan.salon_plafond"
+
+
+async def test_fans_mode_all_turns_on_remaining(hass: HomeAssistant) -> None:
+    turn_on = async_mock_service(hass, "fan", "turn_on")
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LUX, "500")
+    hass.states.async_set(LIGHT, "off")
+    hass.states.async_set(TEMP, "28")
+    hass.states.async_set(FAN, "on", {"percentage": 55})
+    hass.states.async_set(FAN2, "off")
+    await _setup(hass, **{CONF_FANS: [FAN, FAN2], CONF_TEMPERATURE: TEMP})
+
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert _entities(turn_on) == [[FAN2]]
+
+
+async def test_fans_mode_any_leaves_others(hass: HomeAssistant) -> None:
+    turn_on = async_mock_service(hass, "fan", "turn_on")
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LUX, "500")
+    hass.states.async_set(LIGHT, "off")
+    hass.states.async_set(TEMP, "28")
+    hass.states.async_set(FAN, "on", {"percentage": 55})
+    hass.states.async_set(FAN2, "off")
+    entry = await _setup(hass, **{CONF_FANS: [FAN, FAN2], CONF_TEMPERATURE: TEMP})
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": _eid(hass, entry, "select", "fans_mode"), "option": "any"},
+        blocking=True,
+    )
+
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert turn_on == []

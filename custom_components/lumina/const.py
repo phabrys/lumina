@@ -91,10 +91,11 @@ SUN_BELOW_HORIZON: Final = "below_horizon"
 DAYLIGHT_OFF_DELAY: Final = 300  # s
 DAYLIGHT_RELOCK_DELAY: Final = 600  # s
 
-# Plusieurs lumières : toutes allumées, ou aucune action si l'une l'est déjà
-LIGHTS_MODE_ALL: Final = "all"
-LIGHTS_MODE_ANY: Final = "any"
-LIGHTS_MODES: Final = [LIGHTS_MODE_ALL, LIGHTS_MODE_ANY]
+# Plusieurs lumières (ou ventilateurs) : tous allumés, ou aucune action si
+# l'un l'est déjà
+MODE_ALL: Final = "all"
+MODE_ANY: Final = "any"
+MODES: Final = [MODE_ALL, MODE_ANY]
 
 # Écart minimal de vitesse avant de réajuster un ventilateur
 FAN_SPEED_MIN_CHANGE: Final = 10  # points de %

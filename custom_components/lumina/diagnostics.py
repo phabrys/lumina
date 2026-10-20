@@ -15,14 +15,8 @@ async def async_get_config_entry_diagnostics(
     """État complet d'une pièce : configuration, réglages et entités suivies."""
     controller = entry.runtime_data
 
-    tracked = [
-        *controller.presence,
-        *controller.presence_hold,
-        *(e for e in (controller.illuminance, controller.temperature, controller.humidity) if e),
-        *(e for group in controller.groups.values() for e in group.entity_ids),
-    ]
     states: dict[str, Any] = {}
-    for entity_id in tracked:
+    for entity_id in controller.tracked_entities:
         state = hass.states.get(entity_id)
         states[entity_id] = (
             None
@@ -62,6 +56,7 @@ async def async_get_config_entry_diagnostics(
                 kind: {
                     "entity_ids": group.entity_ids,
                     "enabled": group.enabled,
+                    "mode": group.mode,
                     "override_until": group.override_until,
                     "off_pending": group.off_timer is not None,
                     "warning": group.warning,
