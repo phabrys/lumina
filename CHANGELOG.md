@@ -1,6 +1,6 @@
 # Changelog
 
-## Non publié
+## 0.7.1 — 2026-10-20
 
 - Maintien de présence : une pièce occupée le reste après un redémarrage de Home Assistant si un média (TV, enceinte…) joue toujours, même s'il met quelques secondes à redevenir disponible. Un média qui joue dans une pièce vide ne l'occupe toujours pas.
 
