@@ -192,6 +192,36 @@
           },
           "vacancy_pending": {
             "name": "Absence en cours de confirmation"
+          },
+          "vacancy_at": {
+            "name": "Fin de la confirmation d'absence"
+          },
+          "lights_off_at": {
+            "name": "Extinction des lumières à"
+          },
+          "fans_off_at": {
+            "name": "Arrêt des ventilateurs à"
+          },
+          "presence_sensors": {
+            "name": "Capteurs de présence"
+          },
+          "presence_hold_entities": {
+            "name": "Maintien de présence"
+          },
+          "illuminance_sensor": {
+            "name": "Capteur de luminosité"
+          },
+          "temperature_sensor": {
+            "name": "Capteur de température"
+          },
+          "humidity_sensor": {
+            "name": "Capteur d'humidité"
+          },
+          "lights": {
+            "name": "Lumières"
+          },
+          "fans": {
+            "name": "Ventilateurs"
           }
         }
       },
@@ -214,6 +244,11 @@
           "all": "Toutes",
           "any": "Seulement si aucune n'est allumée"
         }
+      }
+    },
+    "button": {
+      "resume": {
+        "name": "Reprendre l'automatisme"
       }
     }
   }

@@ -17,6 +17,7 @@ _LOGGER = logging.getLogger(__name__)
 _LIST_FIELDS = (CONF_PRESENCE, CONF_PRESENCE_HOLD, CONF_LIGHTS, CONF_FANS)
 
 PLATFORMS: list[Platform] = [
+    Platform.BUTTON,
     Platform.NUMBER,
     Platform.SELECT,
     Platform.SENSOR,

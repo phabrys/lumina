@@ -192,6 +192,36 @@
           },
           "vacancy_pending": {
             "name": "Vacancy pending confirmation"
+          },
+          "vacancy_at": {
+            "name": "Vacancy confirmed at"
+          },
+          "lights_off_at": {
+            "name": "Lights off at"
+          },
+          "fans_off_at": {
+            "name": "Fans off at"
+          },
+          "presence_sensors": {
+            "name": "Presence sensors"
+          },
+          "presence_hold_entities": {
+            "name": "Presence hold"
+          },
+          "illuminance_sensor": {
+            "name": "Illuminance sensor"
+          },
+          "temperature_sensor": {
+            "name": "Temperature sensor"
+          },
+          "humidity_sensor": {
+            "name": "Humidity sensor"
+          },
+          "lights": {
+            "name": "Lights"
+          },
+          "fans": {
+            "name": "Fans"
           }
         }
       },
@@ -214,6 +244,11 @@
           "all": "All",
           "any": "Only if none is on"
         }
+      }
+    },
+    "button": {
+      "resume": {
+        "name": "Resume automation"
       }
     }
   }

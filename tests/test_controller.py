@@ -663,3 +663,53 @@ async def test_simultaneous_changes_make_one_override(hass: HomeAssistant) -> No
 
     overrides = [e for e in entries if e.data["message"].startswith("laisse la main")]
     assert len(overrides) == 1
+
+
+# ----------------------------------------------------------------------
+# v0.6.0 : informations pour la carte, bouton de reprise
+# ----------------------------------------------------------------------
+
+
+async def test_room_state_exposes_entities_and_deadlines(hass: HomeAssistant) -> None:
+    async_mock_service(hass, "light", "turn_on")
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LUX, "10")
+    hass.states.async_set(LIGHT, "on")
+    entry = await _setup(hass)
+
+    attrs = _room(hass, entry).attributes
+    assert attrs["lights"] == [LIGHT]
+    assert attrs["presence_sensors"] == [PIR]
+    assert attrs["illuminance_sensor"] == LUX
+    assert attrs["fans"] == []
+
+    hass.states.async_set(PIR, "off")
+    await hass.async_block_till_done()
+    assert _room(hass, entry).attributes["vacancy_at"] is not None
+
+    await _later(hass, seconds=31)
+    attrs = _room(hass, entry).attributes
+    assert attrs["vacancy_at"] is None
+    assert attrs["lights_off_at"] is not None
+
+
+async def test_resume_button_ends_override(hass: HomeAssistant) -> None:
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LUX, "10")
+    hass.states.async_set(LIGHT, "on")
+    entry = await _setup(hass)
+
+    hass.states.async_set(LIGHT, "off")  # à la main
+    await hass.async_block_till_done()
+    assert _room(hass, entry).state == "override"
+
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": _eid(hass, entry, "button", "resume")},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    assert _room(hass, entry).state == "occupied"
+    assert _entities(turn_on) == [[LIGHT]]  # pièce sombre : lumière rallumée

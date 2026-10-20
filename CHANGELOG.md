@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0 — 2026-10-20
+
+Préparation de la carte [Lumina Card](https://github.com/phabrys/lumina-card).
+
+- Le capteur d'état expose les entités de la pièce (lumières, ventilateurs, capteurs, maintien) et les échéances (`lights_off_at`, `fans_off_at`, `vacancy_at`).
+- Nouveau bouton « Reprendre l'automatisme » : met fin au contrôle manuel tout de suite.
+
 ## 0.5.1 — 2026-10-20
 
 - Ventilateurs : à la fin du cycle minimal, la bascule en attente s'applique sans recalcul du temps restant.
