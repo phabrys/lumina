@@ -107,6 +107,8 @@ class ActuatorGroup:
         self.enabled = True
         self.override_until: datetime | None = None
         self.off_timer: CALLBACK_TYPE | None = None
+        # Échéance de l'extinction programmée (ou de la fin de l'avertissement)
+        self.off_at: datetime | None = None
         self.override_timer: CALLBACK_TYPE | None = None
         # Instant (horloge de la boucle) du début de la reprise manuelle
         self.override_started: float | None = None
@@ -129,6 +131,7 @@ class ActuatorGroup:
         if self.off_timer is not None:
             self.off_timer()
             self.off_timer = None
+        self.off_at = None
         self.warning = False
 
     def clear_override(self) -> None:
@@ -201,6 +204,7 @@ class RoomController:
         self.occupied = False
         # Confirmation d'absence en cours, et instant où la présence a cessé
         self._vacancy_timer: CALLBACK_TYPE | None = None
+        self._vacancy_at: datetime | None = None
         self._presence_lost_at: float | None = None
         # Temps déjà écoulé depuis la fin de présence, déduit des délais
         # d'extinction programmés au moment où l'absence est confirmée
@@ -364,14 +368,37 @@ class RoomController:
             "daylight_locked": self.daylight_locked,
             "occupied": self.occupied,
             "vacancy_pending": self._vacancy_timer is not None,
+            "vacancy_at": self._vacancy_at,
             "presence_hold_active": self._hold_active(),
             "effective_temperature": self._effective_temperature(),
             "lights_override_until": lights.override_until,
             "fans_override_until": fans.override_until,
             "lights_off_pending": lights.off_timer is not None,
+            "lights_off_at": lights.off_at,
+            "fans_off_at": fans.off_at,
             "lights_warning": lights.warning,
             "fans_off_pending": fans.off_timer is not None,
+            # Entités de la pièce, pour les cartes et les tableaux de bord
+            "presence_sensors": self.presence,
+            "presence_hold_entities": self.presence_hold,
+            "illuminance_sensor": self.illuminance,
+            "temperature_sensor": self.temperature,
+            "humidity_sensor": self.humidity,
+            "lights": self.groups[KIND_LIGHTS].entity_ids,
+            "fans": self.groups[KIND_FANS].entity_ids,
         }
+
+    @callback
+    def async_resume(self) -> None:
+        """Lève les reprises manuelles et réapplique les règles tout de suite."""
+        resumed = False
+        for group in self.groups.values():
+            if group.overridden:
+                group.clear_override()
+                resumed = True
+        if resumed:
+            self._log("reprend la gestion automatique (à la demande)")
+        self.async_reevaluate()
 
     # ------------------------------------------------------------------
     # Évaluation
@@ -745,6 +772,7 @@ class RoomController:
         @callback
         def _delay_elapsed(_now: datetime) -> None:
             group.off_timer = None
+            group.off_at = None
             if self.occupied or not group.active or not self._any_on(group):
                 self._notify()
                 return
@@ -762,6 +790,7 @@ class RoomController:
                 )
                 group.warning = True
                 group.off_timer = async_call_later(self.hass, warning, _final_off)
+                group.off_at = dt_util.utcnow() + timedelta(seconds=warning)
                 self._log("baisse les lumières avant extinction")
             else:
                 self._turn_off(group)
@@ -770,12 +799,14 @@ class RoomController:
         @callback
         def _final_off(_now: datetime) -> None:
             group.off_timer = None
+            group.off_at = None
             group.warning = False
             if not self.occupied and group.active and self._any_on(group):
                 self._turn_off(group)
             self._notify()
 
         group.off_timer = async_call_later(self.hass, delay, _delay_elapsed)
+        group.off_at = dt_util.utcnow() + timedelta(seconds=delay)
 
     def _turn_off(self, group: ActuatorGroup) -> None:
         self._call(group, SERVICE_TURN_OFF)
@@ -810,6 +841,7 @@ class RoomController:
             return
         if self._vacancy_timer is None:
             self._presence_lost_at = self.hass.loop.time()
+            self._vacancy_at = dt_util.utcnow() + timedelta(seconds=confirm)
             self._vacancy_timer = async_call_later(
                 self.hass, confirm, self._confirm_vacancy
             )
@@ -818,6 +850,7 @@ class RoomController:
     @callback
     def _confirm_vacancy(self, _now: datetime) -> None:
         self._vacancy_timer = None
+        self._vacancy_at = None
         if self._compute_occupied():
             self._notify()
             return
@@ -827,6 +860,7 @@ class RoomController:
         if self._vacancy_timer is not None:
             self._vacancy_timer()
             self._vacancy_timer = None
+        self._vacancy_at = None
         self._presence_lost_at = None
 
     def _set_vacant(self) -> None:

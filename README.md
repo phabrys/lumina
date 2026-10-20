@@ -74,8 +74,13 @@ Les lumières et ventilateurs peuvent aussi être des prises (`switch`), par exe
 | `number.…_teinte_des_lumieres_jour` / `…_nuit` | En K (défaut 4000 / 2700, 0 = ne pas modifier) |
 | `number.…_extinction_a_la_lumiere_du_jour` | En lx (défaut 0 = désactivé) |
 | `select.…_lumieres_a_allumer` | Toutes / Seulement si aucune n'est allumée |
+| `button.…_reprendre_l_automatisme` | Met fin au contrôle manuel tout de suite |
 
 Les réglages n'apparaissent que s'ils ont un sens pour la pièce (pas de seuil de luminosité sans capteur, etc.) et sont conservés au redémarrage.
+
+## Carte
+
+[Lumina Card](https://github.com/phabrys/lumina-card) affiche et pilote une pièce Lumina dans un tableau de bord.
 
 ## Installation
 
