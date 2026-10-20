@@ -109,3 +109,7 @@ Les versions sont publiées automatiquement : quand la CI réussit sur `main` av
 pip install -r requirements_test.txt
 pytest
 ```
+
+## Licence
+
+Distribué sous licence MIT. Voir [LICENSE](LICENSE).
