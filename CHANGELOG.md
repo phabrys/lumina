@@ -1,8 +1,9 @@
 # Changelog
 
-## Non publié
+## 0.6.1 — 2026-10-20
 
 - Journal : un appel qui échoue côté appareil (script introuvable, entité muette…) est signalé au lieu de passer inaperçu.
+- Les tests tournent sous Python 3.14, contre la version actuelle de Home Assistant.
 
 ## 0.6.0 — 2026-10-20
 
