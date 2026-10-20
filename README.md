@@ -101,7 +101,7 @@ Pour que la détection automatique fonctionne, chaque entité (ou son appareil) 
 
 ## Versions
 
-Les versions sont publiées automatiquement : un changement du numéro de version dans `manifest.json` sur `main` crée le tag et la release GitHub à partir du `CHANGELOG.md`, et HACS propose la mise à jour.
+Les versions sont publiées automatiquement : quand la CI réussit sur `main` avec un nouveau numéro de version dans `manifest.json`, le tag et la release GitHub sont créés à partir du `CHANGELOG.md`, et HACS propose la mise à jour. Une CI en échec ne publie rien.
 
 ## Développement
 

@@ -1,13 +1,13 @@
 name: Release
 
-# Crée le tag et la release GitHub dès que la version du manifeste change
-# sur main. HACS propose alors la mise à jour avec son numéro de version.
+# Publie le tag et la release GitHub quand la CI réussit sur main et que la
+# version du manifeste n'a pas encore de release. HACS propose alors la mise
+# à jour avec son numéro de version.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
-    paths:
-      - custom_components/lumina/manifest.json
-      - .github/workflows/release.yml
   workflow_dispatch:
 
 permissions:
@@ -15,9 +15,13 @@ permissions:
 
 jobs:
   release:
+    # Jamais de release sur une CI en échec
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Lire la version
         id: version
@@ -27,6 +31,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
+          TARGET: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           if gh release view "v$VERSION" >/dev/null 2>&1; then
             echo "La release v$VERSION existe déjà."
@@ -35,4 +40,4 @@ jobs:
           # Notes : la section du CHANGELOG correspondant à la version
           awk -v v="$VERSION" '$0 ~ "^## "v {f=1; next} /^## / {f=0} f' CHANGELOG.md > notes.md
           printf '\n**Mise à jour :** HACS → Lumina → Mettre à jour, puis redémarrer Home Assistant.\n' >> notes.md
-          gh release create "v$VERSION" --target "$GITHUB_SHA" --title "Lumina $VERSION" --notes-file notes.md
+          gh release create "v$VERSION" --target "$TARGET" --title "Lumina $VERSION" --notes-file notes.md

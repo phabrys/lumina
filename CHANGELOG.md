@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.1 — 2026-10-20
+
+- Ventilateurs : à la fin du cycle minimal, la bascule en attente s'applique sans recalcul du temps restant.
+- Les releases ne sont plus publiées qu'après des tests au vert.
+
 ## 0.5.0 — 2026-10-20
 
 Corrections issues de l'observation du Journal en conditions réelles.

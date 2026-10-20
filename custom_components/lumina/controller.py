@@ -675,6 +675,8 @@ class RoomController:
             @callback
             def _retry(_now: datetime) -> None:
                 group.cycle_timer = None
+                # Le cycle minimal est écoulé : la prochaine bascule est permise.
+                group.last_temp_switch = None
                 if self.occupied:
                     self._evaluate_fans()
                 self._notify()
