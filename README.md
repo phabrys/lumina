@@ -4,6 +4,8 @@ Intégration Home Assistant de gestion automatique des lumières, ventilateurs e
 
 Chaque pièce est une entrée de configuration indépendante, ajoutée depuis l'interface : aucune automatisation à écrire ou à dupliquer.
 
+Pour suivre et piloter une pièce depuis un tableau de bord, voir la carte [Lumina Card](#carte).
+
 ## Fonctionnement
 
 ```mermaid
@@ -98,7 +100,23 @@ Les réglages n'apparaissent que s'ils ont un sens pour la pièce (pas de seuil 
 
 ## Carte
 
-[Lumina Card](https://github.com/phabrys/lumina-card) affiche et pilote une pièce Lumina dans un tableau de bord.
+[Lumina Card](https://github.com/phabrys/lumina-card) affiche et pilote une pièce Lumina dans un tableau de bord, sans rien à configurer d'autre que la pièce.
+
+![Lumina Card](https://raw.githubusercontent.com/phabrys/lumina-card/main/docs/apercu-clair.png)
+
+- **Une phrase qui résume la pièce**, avec la priorité à ce qui demande ton attention : avertissement avant extinction, contrôle manuel (heure de reprise et bouton **Rendre la main**), confirmation d'absence, extinctions et action sur la clim programmées, automatisme en pause, présence maintenue par la TV…
+- **Un panneau par groupe** (lumière, ventilateur, clim) : état, curseur de luminosité ou de vitesse, consigne de la clim, pastille Auto / Manuel / Pause et prochain comportement (« S'allume sous 50 lx », « S'éteint 15 min après ton départ »…).
+- **Bascule jour / nuit** (« Nuit maintenant ») et ambiance : température ressentie, humidité, luminosité.
+- **Tous les réglages de la pièce** par onglets (lumière, ventilateur, clim, nuit, présence), limités à ceux qui existent pour la pièce.
+
+Installation via HACS : **Dépôts personnalisés** → `https://github.com/phabrys/lumina-card`, catégorie **Tableau de bord**. Puis **Ajouter une carte → Lumina** et choisir la pièce, ou en YAML :
+
+```yaml
+type: custom:lumina-card
+device: 0123456789abcdef0123456789abcdef   # appareil Lumina de la pièce
+```
+
+La carte lit les attributs du capteur d'état (entités de la pièce, échéances `lights_off_at`, `fans_off_at`, `climate_vacant_at`…). Elle fonctionne avec Lumina 0.6.0 et plus ; la clim et ses réglages y apparaissent avec Lumina 0.8.0 et Lumina Card 0.2.0.
 
 ## Installation
 
