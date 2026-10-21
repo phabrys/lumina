@@ -79,15 +79,16 @@ async def _setup(hass: HomeAssistant, **extra) -> MockConfigEntry:
 
 
 async def _setup_after_restart(
-    hass: HomeAssistant, occupied: bool, **extra
+    hass: HomeAssistant, occupied: bool, room_attrs: dict | None = None, **extra
 ) -> MockConfigEntry:
-    """Pièce démarrée avec l'occupation qu'elle avait avant le redémarrage."""
+    """Pièce démarrée avec l'état qu'elle avait avant le redémarrage."""
     entry = _entry(hass, **extra)
     room = er.async_get(hass).async_get_or_create(
         "sensor", DOMAIN, f"{entry.entry_id}_room_state", config_entry=entry
     )
     state = "occupied" if occupied else "vacant"
-    mock_restore_cache(hass, [State(room.entity_id, state, {"occupied": occupied})])
+    attrs = {"occupied": occupied, **(room_attrs or {})}
+    mock_restore_cache(hass, [State(room.entity_id, state, attrs)])
     return await _start(hass, entry)
 
 
@@ -955,6 +956,47 @@ async def test_night_override_can_be_limited(hass: HomeAssistant, daytime) -> No
     hass.states.async_set(LIGHT, "off")
     await hass.async_block_till_done()
     await _later(hass, minutes=31)
+    assert _entities(turn_on) == [[LIGHT]]
+
+
+async def test_night_override_survives_restart(hass: HomeAssistant, daytime) -> None:
+    daytime.move_to(NIGHT)
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LUX, "5")
+    hass.states.async_set(LIGHT, "off")  # éteinte au coucher, avant le redémarrage
+    until = dt_util.utcnow() + timedelta(hours=7, minutes=30)  # 07:00
+    entry = await _setup_after_restart(
+        hass,
+        True,
+        room_attrs={
+            "lights_override_until": until.isoformat(),
+            "overrides_until_morning": ["lights"],
+        },
+    )
+
+    room = _room(hass, entry)
+    assert room.state == "override"
+    assert room.attributes["overrides_until_morning"] == ["lights"]
+    await _later(hass, minutes=31)
+    assert turn_on == []  # pas de rallumage au redémarrage
+
+    # Le matin, la reprise manuelle prend fin comme prévu.
+    await _later(hass, hours=7, minutes=31)
+    assert _entities(turn_on) == [[LIGHT]]
+
+
+async def test_expired_override_not_restored(hass: HomeAssistant) -> None:
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LUX, "5")
+    hass.states.async_set(LIGHT, "off")
+    past = dt_util.utcnow() - timedelta(minutes=5)
+    entry = await _setup_after_restart(
+        hass, True, room_attrs={"lights_override_until": past.isoformat()}
+    )
+
+    assert _room(hass, entry).state == "occupied"
     assert _entities(turn_on) == [[LIGHT]]
 
 

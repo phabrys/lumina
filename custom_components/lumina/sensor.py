@@ -13,9 +13,10 @@ from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.util import dt as dt_util
 
 from . import LuminaConfigEntry
-from .const import ROOM_STATES
+from .const import KIND_CLIMATE, KIND_FANS, KIND_LIGHTS, ROOM_STATES
 from .entity import LuminaEntity
 
 
@@ -45,8 +46,19 @@ class LuminaRoomStateSensor(LuminaEntity, SensorEntity, RestoreEntity):
         # Les entrées du Journal de Lumina sont rattachées à ce capteur.
         self._controller.state_entity_id = self.entity_id
         last_state = await self.async_get_last_state()
-        if last_state is not None and last_state.attributes.get("occupied") is True:
+        if last_state is None:
+            return
+        attrs = last_state.attributes
+        if attrs.get("occupied") is True:
             self._controller.restore_occupied()
+        # Contrôles manuels en cours : un redémarrage la nuit ne doit pas
+        # rallumer la lumière éteinte au coucher.
+        morning = attrs.get("overrides_until_morning") or []
+        for kind in (KIND_LIGHTS, KIND_FANS, KIND_CLIMATE):
+            until = attrs.get(f"{kind}_override_until")
+            parsed = dt_util.parse_datetime(until) if isinstance(until, str) else None
+            if parsed is not None:
+                self._controller.restore_override(kind, parsed, morning=kind in morning)
 
     @property
     def native_value(self) -> str:

@@ -214,6 +214,15 @@ class RoomController(ClimateControl, DaylightControl):
         self.occupied = True
 
     @callback
+    def restore_override(self, kind: str, until: datetime, *, morning: bool) -> None:
+        """Contrôle manuel d'avant le redémarrage : repris jusqu'à son échéance."""
+        group = self.groups[kind]
+        if not group.entity_ids or until <= dt_util.utcnow():
+            return
+        group.override_morning = morning
+        self._arm_override(group, until)
+
+    @callback
     def async_start(self) -> None:
         """Abonne le contrôleur aux changements d'état utiles."""
         self._track([*self.presence, *self.presence_hold], self._on_presence)
@@ -400,6 +409,10 @@ class RoomController(ClimateControl, DaylightControl):
             "lights_warning": lights.warning,
             "fans_off_pending": fans.off_timer is not None,
             "climate_override_until": climate.override_until,
+            # Contrôles manuels qui tiennent jusqu'à la fin de la nuit
+            "overrides_until_morning": [
+                group.kind for group in self.groups.values() if group.override_morning
+            ],
             "climate_running": self._climate_running(),
             "climate_vacant_action": self._climate_action(),
             "climate_vacant_at": climate.off_at,
@@ -1001,24 +1014,30 @@ class RoomController(ClimateControl, DaylightControl):
             # allumage à la main garde la durée réglée, pour ne pas laisser une
             # lumière allumée toute la nuit dans une pièce vide.
             group.override_morning = True
-            group.override_until = self._next_night_end()
-            duration = group.override_until - dt_util.utcnow()
+            until = self._next_night_end()
             self._log(
                 f"{group.kind}_override_morning",
-                time=dt_util.as_local(group.override_until).strftime("%H:%M"),
+                time=dt_util.as_local(until).strftime("%H:%M"),
             )
         else:
-            duration = timedelta(minutes=minutes)
-            group.override_until = dt_util.utcnow() + duration
+            until = dt_util.utcnow() + timedelta(minutes=minutes)
             self._log(f"{group.kind}_override", minutes=minutes)
+        self._arm_override(group, until)
+
+    def _arm_override(self, group: ActuatorGroup, until: datetime) -> None:
+        """Programme la fin de la reprise manuelle du groupe."""
 
         @callback
         def _end_override(_now: datetime) -> None:
             group.override_timer = None
             group.override_until = None
             group.override_started = None
+            group.override_morning = False
             self._log(f"{group.kind}_override_end")
             self.async_reevaluate()
 
-        group.override_timer = async_call_later(self.hass, duration, _end_override)
+        group.override_until = until
+        group.override_timer = async_call_later(
+            self.hass, until - dt_util.utcnow(), _end_override
+        )
         self._notify()
