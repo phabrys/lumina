@@ -90,6 +90,10 @@ FAN_MIN_CYCLE: Final = 300  # s
 # Changements d'état rapprochés d'un même groupe = une seule reprise manuelle
 OVERRIDE_DEBOUNCE: Final = 5  # s
 
+# Délai pendant lequel un appareil lent peut confirmer une commande de Lumina
+# sans que la confirmation passe pour un geste manuel
+CONFIRMATION_WINDOW: Final = 60  # s
+
 # Repli quand le capteur de luminosité ne répond pas
 SUN_ENTITY: Final = "sun.sun"
 SUN_BELOW_HORIZON: Final = "below_horizon"

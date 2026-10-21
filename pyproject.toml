@@ -2,3 +2,35 @@
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "RUF", "SIM", "UP", "W"]
+
+[tool.ruff.lint.isort]
+# Même ordre d'imports que Home Assistant
+known-first-party = ["homeassistant"]
+known-local-folder = ["custom_components"]
+force-sort-within-sections = true
+combine-as-imports = true
+
+[tool.mypy]
+python_version = "3.13"
+packages = ["custom_components.lumina"]
+strict = true
+# Les sous-classes d'entités HA redéfinissent des attributs mis en cache
+disable_error_code = ["misc"]
+
+[[tool.mypy.overrides]]
+# Constantes importées depuis le paquet de chaque domaine (light, fan,
+# climate), là où elles se trouvent dans toutes les versions de HA prises en charge
+module = "homeassistant.*"
+implicit_reexport = true
+
+[[tool.mypy.overrides]]
+# Annotations des sélecteurs et schémas de formulaire qui varient selon la version de HA
+module = "custom_components.lumina.config_flow"
+disable_error_code = ["arg-type", "list-item"]

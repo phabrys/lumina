@@ -22,14 +22,40 @@ jobs:
           # pas pour une installation en dépôt personnalisé.
           ignore: brands description topics license
 
-  tests:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
-      - run: pip install -r requirements_test.txt
+      - run: pip install -r requirements_lint.txt
+      - run: ruff check custom_components tests
+
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Version actuelle de Home Assistant
+          - name: actuelle
+            python: "3.14"
+            requirements: requirements_test.txt
+          # Plus ancienne version prise en charge (hacs.json)
+          - name: minimale
+            python: "3.13"
+            requirements: tests/requirements_min.txt
+    name: tests (HA ${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -r ${{ matrix.requirements }}
+      - name: mypy
+        if: matrix.name == 'actuelle'
+        run: mypy
       - name: pytest
         shell: bash
         run: |

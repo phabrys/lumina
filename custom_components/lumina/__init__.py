@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -65,7 +66,7 @@ async def _async_update_listener(hass: HomeAssistant, entry: LuminaConfigEntry) 
     await hass.config_entries.async_reload(entry.entry_id)
 
 
-def _normalize(config: dict) -> dict:
+def _normalize(config: dict[str, Any]) -> dict[str, Any]:
     """Garantit des listes pour tous les champs d'entités multiples."""
     result = dict(config)
     for field in _LIST_FIELDS:

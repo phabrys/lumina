@@ -100,6 +100,10 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
 
 
 def message(language: str, key: str, **values: Any) -> str:
-    """Message `key` dans la langue donnée (« fr-CA » → « fr »), anglais à défaut."""
-    catalog = MESSAGES.get(language.split("-")[0].lower(), MESSAGES[DEFAULT_LANGUAGE])
-    return catalog[key].format(**values)
+    """Message `key` dans la langue donnée (« fr-CA » → « fr »), anglais à défaut.
+
+    Un message absent d'une traduction est lui aussi donné en anglais.
+    """
+    catalog = MESSAGES.get(language.split("-")[0].lower(), {})
+    template = catalog.get(key) or MESSAGES[DEFAULT_LANGUAGE][key]
+    return template.format(**values)

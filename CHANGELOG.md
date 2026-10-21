@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0 — 2026-10-20
+
+- Avertissement avant extinction : quelqu'un qui revient pendant que les lumières baissent retrouve la luminosité d'avant, et non celle du réglage. La nuit, avec l'allumage automatique coupé, une lampe allumée à la main ne revient plus à 1 %. Seules les lumières baissées sont rétablies.
+- Détecteur de présence indisponible (redémarrage de Zigbee2MQTT, de ZHA…) : la pièce reste occupée au lieu de se vider et de tout éteindre. Même chose au démarrage de Home Assistant.
+- Contrôle manuel : un appareil lent (cloud, clim) qui confirme une commande de Lumina jusqu'à 1 min plus tard, sous un autre contexte, ne déclenche plus de contrôle manuel. La vitesse confirmée peut être arrondie au cran du ventilateur.
+- Ventilateurs : pendant le cycle minimal de 5 min, la vitesse des ventilateurs en marche suit la température.
+- Clims : une clim en simple ventilation (`fan_only`) n'est plus éteinte ni modifiée quand la pièce se vide.
+- Journal : un message absent d'une traduction s'affiche en anglais au lieu de provoquer une erreur.
+- Appareil : la version de Lumina apparaît sur la fiche de l'appareil.
+- Code : contrôleur découpé (socle commun, clims, lumière du jour), constantes de Home Assistant à la place des textes en dur ; ruff et mypy dans la CI ; tests contre la version actuelle et la version minimale de Home Assistant (2025.6.0).
+
 ## 0.8.0 — 2026-10-20
 
 - Clims : nouvelles entités de pièce. Lumina ne les allume jamais ; quand la pièce est vide depuis le délai réglé (15 min), il les éteint, les passe en eco ou relève leur consigne de 2 °C (réglable le jour et la nuit ; rien la nuit par défaut), puis rétablit leur état si quelqu'un revient dans les 2 h.
