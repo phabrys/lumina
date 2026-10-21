@@ -71,6 +71,8 @@ class ActuatorGroup:
     override_timer: CALLBACK_TYPE | None = None
     # Instant (horloge de la boucle) du début de la reprise manuelle
     override_started: float | None = None
+    # Reprise manuelle qui tient jusqu'à la fin de la nuit
+    override_morning: bool = False
     # Lumières baissées en attendant l'extinction
     warning: bool = False
     # Luminosité (0-255) de chaque lumière avant l'avertissement
@@ -100,6 +102,7 @@ class ActuatorGroup:
         self.override_timer = None
         self.override_until = None
         self.override_started = None
+        self.override_morning = False
 
     def cancel_cycle_timer(self) -> None:
         cancel_timer(self.cycle_timer)

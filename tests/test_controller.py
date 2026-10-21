@@ -37,6 +37,8 @@ HUMIDITY = "sensor.humidite_salon"
 LIGHT = "light.salon"
 FAN = "fan.salon"
 TV = "media_player.tv_salon"
+# Lumière à variateur : seule une lumière qui peut baisser a un avertissement
+DIMMABLE = {"supported_color_modes": ["brightness"]}
 
 NOON = "2026-10-18T12:00:00-07:00"  # fuseau des tests : US/Pacific
 NIGHT = "2026-10-18T23:30:00-07:00"
@@ -162,7 +164,7 @@ async def test_lights_dim_then_off_after_delay(hass: HomeAssistant) -> None:
     turn_off = async_mock_service(hass, "homeassistant", "turn_off")
     hass.states.async_set(PIR, "on")
     hass.states.async_set(LUX, "10")
-    hass.states.async_set(LIGHT, "on")
+    hass.states.async_set(LIGHT, "on", DIMMABLE)
     entry = await _setup(hass)
 
     hass.states.async_set(PIR, "off")
@@ -180,12 +182,30 @@ async def test_lights_dim_then_off_after_delay(hass: HomeAssistant) -> None:
     assert _entities(turn_off) == [[LIGHT]]
 
 
+async def test_no_warning_for_on_off_light(hass: HomeAssistant) -> None:
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    turn_off = async_mock_service(hass, "homeassistant", "turn_off")
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LUX, "10")
+    hass.states.async_set(LIGHT, "on", {"supported_color_modes": ["onoff"]})
+    await _setup(hass)
+
+    hass.states.async_set(PIR, "off")
+    await hass.async_block_till_done()
+    await _later(hass, seconds=31)
+    await _later(hass, seconds=121)
+
+    # Rien à baisser : extinction directe, sans attendre l'avertissement.
+    assert turn_on == []
+    assert _entities(turn_off) == [[LIGHT]]
+
+
 async def test_warning_cancelled_when_presence_returns(hass: HomeAssistant) -> None:
     turn_on = async_mock_service(hass, "light", "turn_on")
     turn_off = async_mock_service(hass, "homeassistant", "turn_off")
     hass.states.async_set(PIR, "on")
     hass.states.async_set(LUX, "10")
-    hass.states.async_set(LIGHT, "on")
+    hass.states.async_set(LIGHT, "on", DIMMABLE)
     await _setup(hass)
 
     hass.states.async_set(PIR, "off")
@@ -938,6 +958,76 @@ async def test_night_override_can_be_limited(hass: HomeAssistant, daytime) -> No
     assert _entities(turn_on) == [[LIGHT]]
 
 
+async def test_night_override_survives_sleeper_dropout(
+    hass: HomeAssistant, daytime
+) -> None:
+    daytime.move_to(NIGHT)
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LUX, "5")
+    hass.states.async_set(LIGHT, "on")
+    entry = await _setup(hass)
+    turn_on.clear()
+    hass.states.async_set(LIGHT, "off")  # extinction au coucher
+    await hass.async_block_till_done()
+
+    # Le détecteur ne voit plus le dormeur : la pièce se vide...
+    hass.states.async_set(PIR, "off")
+    await hass.async_block_till_done()
+    await _later(hass, seconds=31)
+    assert _room(hass, entry).attributes["occupied"] is False
+
+    # ... mais son prochain mouvement ne rallume pas la lumière.
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert turn_on == []
+    assert _room(hass, entry).state == "override"
+
+
+async def test_night_override_lifted_when_lights_left_on(
+    hass: HomeAssistant, daytime
+) -> None:
+    daytime.move_to(NIGHT)
+    turn_off = async_mock_service(hass, "homeassistant", "turn_off")
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LUX, "5")
+    hass.states.async_set(LIGHT, "on")
+    hass.states.async_set("light.salon_2", "on")
+    await _setup(hass, **{CONF_LIGHTS: [LIGHT, "light.salon_2"]})
+    hass.states.async_set(LIGHT, "off")  # l'autre lampe reste allumée
+    await hass.async_block_till_done()
+
+    hass.states.async_set(PIR, "off")
+    await hass.async_block_till_done()
+    await _later(hass, seconds=31)
+    await _later(hass, seconds=61)  # délai de nuit
+
+    assert _entities(turn_off) == [[LIGHT, "light.salon_2"]]
+
+
+async def test_night_manual_turn_on_keeps_set_duration(
+    hass: HomeAssistant, daytime
+) -> None:
+    daytime.move_to(NIGHT)
+    turn_off = async_mock_service(hass, "homeassistant", "turn_off")
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LUX, "5")
+    hass.states.async_set(LIGHT, "off")
+    entry = await _setup(hass)
+
+    # Lumière allumée à la main dans une pièce vide : 30 min, pas jusqu'au matin.
+    hass.states.async_set(LIGHT, "on")
+    await hass.async_block_till_done()
+    until = dt_util.parse_datetime(
+        str(_room(hass, entry).attributes["lights_override_until"])
+    )
+    assert until - dt_util.utcnow() == timedelta(minutes=30)
+
+    await _later(hass, minutes=31)
+    await _later(hass, minutes=31, seconds=61)
+    assert _entities(turn_off) == [[LIGHT]]
+
+
 # ----------------------------------------------------------------------
 # Clims
 # ----------------------------------------------------------------------
@@ -1105,7 +1195,7 @@ async def test_warning_return_restores_previous_brightness(hass: HomeAssistant) 
     turn_on = async_mock_service(hass, "light", "turn_on")
     hass.states.async_set(PIR, "on")
     hass.states.async_set(LUX, "10")
-    hass.states.async_set(LIGHT, "on", {"brightness": 153})  # 60 %
+    hass.states.async_set(LIGHT, "on", {**DIMMABLE, "brightness": 153})  # 60 %
     await _setup(hass)
 
     await _vacate_until_warning(hass)
@@ -1124,7 +1214,7 @@ async def test_warning_return_at_night_without_auto_lights(
     turn_on = async_mock_service(hass, "light", "turn_on")
     hass.states.async_set(PIR, "on")
     hass.states.async_set(LUX, "10")
-    hass.states.async_set(LIGHT, "on")  # luminosité inconnue
+    hass.states.async_set(LIGHT, "on", DIMMABLE)  # luminosité inconnue
     entry = await _setup(hass)
     await _set_number(hass, entry, "night_brightness", 0)
 
