@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.1 — 2026-10-21
+
+- Nuit : un contrôle manuel « jusqu'au matin » n'est plus levé quand la pièce se vide si tout le groupe est éteint. Un dormeur que le détecteur ne voit plus (FP2, PIR) ne rallume donc plus la lumière à son prochain mouvement. Un groupe resté allumé est toujours repris pour être éteint.
+- Nuit : une lumière ou un ventilateur allumé à la main garde la durée réglée (30 min) au lieu de tenir jusqu'au matin. Une lumière allumée dans une pièce vide ne reste plus allumée toute la nuit.
+- Avertissement avant extinction : les lumières sans variateur s'éteignent directement au lieu d'attendre 15 s sans rien baisser.
+
 ## 0.9.0 — 2026-10-20
 
 - Avertissement avant extinction : quelqu'un qui revient pendant que les lumières baissent retrouve la luminosité d'avant, et non celle du réglage. La nuit, avec l'allumage automatique coupé, une lampe allumée à la main ne revient plus à 1 %. Seules les lumières baissées sont rétablies.

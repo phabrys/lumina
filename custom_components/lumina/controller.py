@@ -19,6 +19,7 @@ from homeassistant.components.light import (
     ATTR_COLOR_TEMP_KELVIN,
     ATTR_SUPPORTED_COLOR_MODES,
     ColorMode,
+    brightness_supported,
 )
 from homeassistant.const import (
     ATTR_TEMPERATURE,
@@ -781,11 +782,12 @@ class RoomController(ClimateControl, DaylightControl):
                 self._notify()
                 return
             warning = self.settings[SETTING_LIGHT_WARNING]
+            # Une lumière sans variateur ne peut pas baisser : pas d'avertissement.
             dimmable = (
                 [
                     e
                     for e in group.entity_ids
-                    if domain_of(e) == "light" and self._is_on(e)
+                    if domain_of(e) == "light" and self._is_on(e) and self._dimmable(e)
                 ]
                 if group.kind == KIND_LIGHTS and warning > 0
                 else []
@@ -819,6 +821,12 @@ class RoomController(ClimateControl, DaylightControl):
 
         group.off_timer = async_call_later(self.hass, delay, _delay_elapsed)
         group.off_at = dt_util.utcnow() + timedelta(seconds=delay)
+
+    def _dimmable(self, entity_id: str) -> bool:
+        state = self.hass.states.get(entity_id)
+        return state is not None and brightness_supported(
+            state.attributes.get(ATTR_SUPPORTED_COLOR_MODES)
+        )
 
     def _brightness(self, entity_id: str) -> int | None:
         state = self.hass.states.get(entity_id)
@@ -897,7 +905,11 @@ class RoomController(ClimateControl, DaylightControl):
         self.occupied = False
         _LOGGER.debug("%s : pièce vide", self.name)
         for group in self.groups.values():
-            group.clear_override()
+            # Réglage du coucher (tout éteint) : un dormeur que le détecteur ne
+            # voit plus ne le lève pas, sinon tout se rallumerait à son prochain
+            # mouvement. Un groupe resté allumé est repris pour être éteint.
+            if not group.override_morning or self._any_on(group):
+                group.clear_override()
         self._reset_daylight()
         if self._presence_lost_at is not None:
             self._off_delay_credit = max(
@@ -956,7 +968,9 @@ class RoomController(ClimateControl, DaylightControl):
                 if old_state.attributes.get(attr) != value:
                     changed[attr] = value
             if changed and not self._is_own_change(new_state, changed):
-                self._start_override(group)
+                self._start_override(
+                    group, turned_on=changed.get(STATE_FIELD) == STATE_ON
+                )
             # Clim lancée ou arrêtée : les ventilateurs s'adaptent.
             if group.kind == KIND_CLIMATE and STATE_FIELD in changed and self.occupied:
                 self._evaluate_fans()
@@ -964,7 +978,7 @@ class RoomController(ClimateControl, DaylightControl):
 
         return _handler
 
-    def _start_override(self, group: ActuatorGroup) -> None:
+    def _start_override(self, group: ActuatorGroup, *, turned_on: bool = False) -> None:
         minutes = self.settings[SETTING_OVERRIDE_DURATION]
         if not group.entity_ids or not group.enabled or minutes <= 0:
             return
@@ -982,8 +996,11 @@ class RoomController(ClimateControl, DaylightControl):
         if group.kind == KIND_CLIMATE:
             self._clear_climate_saved()  # la clim est reprise en main
         group.override_started = now
-        if self.is_night and self.night_override_until_morning:
-            # Réglage du coucher : il tient jusqu'à la fin de la nuit.
+        if self.is_night and self.night_override_until_morning and not turned_on:
+            # Réglage du coucher : il tient jusqu'à la fin de la nuit. Un
+            # allumage à la main garde la durée réglée, pour ne pas laisser une
+            # lumière allumée toute la nuit dans une pièce vide.
+            group.override_morning = True
             group.override_until = self._next_night_end()
             duration = group.override_until - dt_util.utcnow()
             self._log(
