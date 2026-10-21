@@ -2,5 +2,5 @@
 # Hors de la racine : Dependabot ne la met pas à jour.
 pytest-homeassistant-custom-component==0.13.251  # HA 2025.6.0
 # aiodns de HA 2025.6 n'est pas compatible avec pycares 5
-pycares<5
+pycares<6
 pytest-github-actions-annotate-failures
