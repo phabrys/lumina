@@ -10,12 +10,14 @@ from homeassistant.helpers.restore_state import RestoreEntity
 
 from . import LuminaConfigEntry
 from .const import (
+    BEDTIME_MODES,
     CLIMATE_ACTIONS,
     FANS_WITH_CLIMATE_MODES,
     KIND_CLIMATE,
     KIND_FANS,
     KIND_LIGHTS,
     MODES,
+    SELECT_BEDTIME,
     SELECT_CLIMATE_VACANT_DAY,
     SELECT_CLIMATE_VACANT_NIGHT,
 )
@@ -40,6 +42,7 @@ async def async_setup_entry(
         )
         if groups[KIND_FANS].entity_ids:
             entities.append(LuminaFansWithClimateSelect(entry))
+    entities.append(LuminaBedtimeSelect(entry))
     async_add_entities(entities)
 
 
@@ -114,3 +117,26 @@ class LuminaFansWithClimateSelect(LuminaEntity, SelectEntity, RestoreEntity):
 
     async def async_select_option(self, option: str) -> None:
         self._controller.set_fans_with_climate(option)
+
+
+class LuminaBedtimeSelect(LuminaEntity, SelectEntity, RestoreEntity):
+    """Lumières éteintes à la main la nuit : contrôle manuel, ou sommeil."""
+
+    _attr_options = BEDTIME_MODES
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, entry: LuminaConfigEntry) -> None:
+        super().__init__(entry, SELECT_BEDTIME)
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state is not None and last_state.state in BEDTIME_MODES:
+            self._controller.set_bedtime_gesture(last_state.state, reevaluate=False)
+
+    @property
+    def current_option(self) -> str:
+        return self._controller.bedtime_gesture
+
+    async def async_select_option(self, option: str) -> None:
+        self._controller.set_bedtime_gesture(option)

@@ -51,14 +51,20 @@ class LuminaRoomStateSensor(LuminaEntity, SensorEntity, RestoreEntity):
         attrs = last_state.attributes
         if attrs.get("occupied") is True:
             self._controller.restore_occupied()
+            if attrs.get("lights_held") is True:
+                self._controller.restore_lights_held()
         # Contrôles manuels en cours : un redémarrage la nuit ne doit pas
-        # rallumer la lumière éteinte au coucher.
-        morning = attrs.get("overrides_until_morning") or []
+        # rallumer la lumière éteinte au coucher. Ancien nom avant 0.10.0.
+        until_wake = (
+            attrs.get("overrides_until_wake") or attrs.get("overrides_until_morning") or []
+        )
         for kind in (KIND_LIGHTS, KIND_FANS, KIND_CLIMATE):
             until = attrs.get(f"{kind}_override_until")
             parsed = dt_util.parse_datetime(until) if isinstance(until, str) else None
             if parsed is not None:
-                self._controller.restore_override(kind, parsed, morning=kind in morning)
+                self._controller.restore_override(
+                    kind, parsed, until_wake=kind in until_wake
+                )
 
     @property
     def native_value(self) -> str:

@@ -5,14 +5,14 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.const import STATE_OFF, STATE_ON, EntityCategory
+from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.util import dt as dt_util
 
 from . import LuminaConfigEntry
-from .const import KIND_CLIMATE, KIND_FANS, KIND_LIGHTS
+from .const import KIND_CLIMATE, KIND_FANS, KIND_LIGHTS, SLEEP_MANUAL
 from .entity import LuminaEntity
 
 
@@ -28,7 +28,7 @@ async def async_setup_entry(
         if controller.groups[kind].entity_ids
     ]
     entities.append(LuminaForcedNightSwitch(entry))
-    entities.append(LuminaNightOverrideSwitch(entry))
+    entities.append(LuminaSleepSwitch(entry))
     async_add_entities(entities)
 
 
@@ -87,28 +87,41 @@ class LuminaForcedNightSwitch(LuminaEntity, SwitchEntity, RestoreEntity):
         self._controller.set_forced_night(False)
 
 
-class LuminaNightOverrideSwitch(LuminaEntity, SwitchEntity, RestoreEntity):
-    """La nuit, un réglage manuel tient jusqu'à la fin de la nuit."""
-
-    _attr_entity_category = EntityCategory.CONFIG
+class LuminaSleepSwitch(LuminaEntity, SwitchEntity, RestoreEntity):
+    """Met la pièce en sommeil, jusqu'à la prochaine heure de fin de nuit au plus tard."""
 
     def __init__(self, entry: LuminaConfigEntry) -> None:
-        super().__init__(entry, "night_override_until_morning")
+        super().__init__(entry, "sleeping")
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
         last_state = await self.async_get_last_state()
-        if last_state is not None and last_state.state in (STATE_ON, STATE_OFF):
-            self._controller.set_night_override_until_morning(
-                last_state.state == STATE_ON, reevaluate=False
+        if last_state is not None and last_state.state == STATE_ON:
+            until = last_state.attributes.get("until")
+            parsed = dt_util.parse_datetime(until) if isinstance(until, str) else None
+            attrs = last_state.attributes
+            self._controller.set_sleeping(
+                True,
+                source=attrs.get("source") or SLEEP_MANUAL,
+                until=parsed,
+                presence_seen=bool(attrs.get("presence_seen")),
+                reevaluate=False,
             )
 
     @property
     def is_on(self) -> bool:
-        return self._controller.night_override_until_morning
+        return self._controller.sleeping
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {
+            "until": self._controller.sleeping_until,
+            "source": self._controller.sleep_source,
+            "presence_seen": self._controller.attributes["sleep_presence_seen"],
+        }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        self._controller.set_night_override_until_morning(True)
+        self._controller.set_sleeping(True)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        self._controller.set_night_override_until_morning(False)
+        self._controller.set_sleeping(False)

@@ -19,7 +19,8 @@
           "climates": "Clims",
           "temperature_sensor": "Capteur de température",
           "presence_hold": "Maintien de présence",
-          "humidity_sensor": "Capteur d'humidité"
+          "humidity_sensor": "Capteur d'humidité",
+          "sleep_entity": "Entité de sommeil"
         },
         "data_description": {
           "presence_sensors": "La pièce est occupée dès qu'un de ces capteurs est actif.",
@@ -29,7 +30,8 @@
           "climates": "Lumina ne les allume jamais. Pièce vide : arrêt, eco ou consigne relevée selon le réglage, puis retour à l'état d'avant quand quelqu'un revient.",
           "temperature_sensor": "Sans capteur, les ventilateurs suivent uniquement la présence.",
           "presence_hold": "TV, enceinte… : tant qu'une de ces entités est active, la pièce reste occupée même si les détecteurs ne voient plus personne.",
-          "humidity_sensor": "Avec l'humidité, les ventilateurs suivent la température ressentie plutôt que la température mesurée."
+          "humidity_sensor": "Avec l'humidité, les ventilateurs suivent la température ressentie plutôt que la température mesurée.",
+          "sleep_entity": "Lit occupé, téléphone en charge, input_boolean… : active, la pièce passe en sommeil ; inactive, elle en sort. Choisis une entité stable : un lever de quelques minutes ne doit pas la couper."
         }
       }
     },
@@ -54,7 +56,8 @@
           "climates": "Clims",
           "temperature_sensor": "Capteur de température",
           "presence_hold": "Maintien de présence",
-          "humidity_sensor": "Capteur d'humidité"
+          "humidity_sensor": "Capteur d'humidité",
+          "sleep_entity": "Entité de sommeil"
         },
         "data_description": {
           "presence_sensors": "La pièce est occupée dès qu'un de ces capteurs est actif.",
@@ -64,7 +67,8 @@
           "climates": "Lumina ne les allume jamais. Pièce vide : arrêt, eco ou consigne relevée selon le réglage, puis retour à l'état d'avant quand quelqu'un revient.",
           "temperature_sensor": "Sans capteur, les ventilateurs suivent uniquement la présence.",
           "presence_hold": "TV, enceinte… : tant qu'une de ces entités est active, la pièce reste occupée même si les détecteurs ne voient plus personne.",
-          "humidity_sensor": "Avec l'humidité, les ventilateurs suivent la température ressentie plutôt que la température mesurée."
+          "humidity_sensor": "Avec l'humidité, les ventilateurs suivent la température ressentie plutôt que la température mesurée.",
+          "sleep_entity": "Lit occupé, téléphone en charge, input_boolean… : active, la pièce passe en sommeil ; inactive, elle en sort. Choisis une entité stable : un lever de quelques minutes ne doit pas la couper."
         }
       }
     },
@@ -93,8 +97,24 @@
       "auto_climate": {
         "name": "Gestion auto de la clim"
       },
-      "night_override_until_morning": {
-        "name": "Contrôle manuel jusqu'au matin (nuit)"
+      "sleeping": {
+        "name": "Sommeil",
+        "state_attributes": {
+          "until": {
+            "name": "Jusqu'à"
+          },
+          "source": {
+            "name": "Origine",
+            "state": {
+              "manual": "Switch",
+              "entity": "Entité de sommeil",
+              "lights_off": "Lumières éteintes à la main"
+            }
+          },
+          "presence_seen": {
+            "name": "Présence vue depuis le coucher"
+          }
+        }
       }
     },
     "number": {
@@ -154,6 +174,9 @@
       },
       "fan_mix_speed": {
         "name": "Vitesse de brassage"
+      },
+      "sleep_brightness": {
+        "name": "Luminosité en sommeil (veilleuse)"
       }
     },
     "sensor": {
@@ -162,7 +185,8 @@
         "state": {
           "occupied": "Occupée",
           "vacant": "Vide",
-          "override": "Contrôle manuel"
+          "override": "Contrôle manuel",
+          "sleeping": "En sommeil"
         },
         "state_attributes": {
           "occupied": {
@@ -264,6 +288,43 @@
           },
           "climates": {
             "name": "Clims"
+          },
+          "sleeping": {
+            "name": "En sommeil"
+          },
+          "sleeping_until": {
+            "name": "Sommeil jusqu'à"
+          },
+          "sleep_source": {
+            "name": "Origine du sommeil",
+            "state": {
+              "manual": "Switch",
+              "entity": "Entité de sommeil",
+              "lights_off": "Lumières éteintes à la main"
+            }
+          },
+          "presumed_occupied": {
+            "name": "Présumée occupée"
+          },
+          "sleep_entity": {
+            "name": "Entité de sommeil"
+          },
+          "overrides_until_wake": {
+            "name": "Contrôles manuels jusqu'au réveil"
+          },
+          "sleep_presence_seen": {
+            "name": "Présence vue depuis le coucher"
+          },
+          "bedtime_gesture": {
+            "name": "Extinction à la main la nuit",
+            "state": {
+              "override": "Contrôle manuel (durée réglée)",
+              "until_vacant": "Sommeil jusqu'à ce que la pièce se vide (salon)",
+              "until_wake": "Sommeil jusqu'au réveil, pièce présumée occupée (chambre)"
+            }
+          },
+          "lights_held": {
+            "name": "Lumière gardée éteinte jusqu'à ce que la pièce se vide"
           }
         }
       },
@@ -318,6 +379,14 @@
           "normal": "Selon la température",
           "mix": "Brassage",
           "off": "Arrêtés"
+        }
+      },
+      "bedtime_gesture": {
+        "name": "Extinction à la main la nuit",
+        "state": {
+          "override": "Contrôle manuel (durée réglée)",
+          "until_vacant": "Sommeil jusqu'à ce que la pièce se vide (salon)",
+          "until_wake": "Sommeil jusqu'au réveil, pièce présumée occupée (chambre)"
         }
       }
     },
