@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.2 — 2026-10-21
+
+- Contrôle manuel : un contrôle manuel en cours (durée réglée ou jusqu'au matin) est repris après un redémarrage de Home Assistant. La lumière éteinte au coucher ne se rallume plus quand Home Assistant redémarre la nuit (mise à jour, coupure…). Une échéance déjà passée n'est pas reprise.
+
 ## 0.9.1 — 2026-10-21
 
 - Nuit : un contrôle manuel « jusqu'au matin » n'est plus levé quand la pièce se vide si tout le groupe est éteint. Un dormeur que le détecteur ne voit plus (FP2, PIR) ne rallume donc plus la lumière à son prochain mouvement. Un groupe resté allumé est toujours repris pour être éteint.
