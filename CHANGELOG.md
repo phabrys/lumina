@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.10.0 — 2026-10-21
+
+- Sommeil : nouvel état de la pièce, distinct de la nuit éveillée. Une pièce en sommeil n'allume pas les lumières (sauf veilleuse, nouveau réglage « Luminosité en sommeil », 0 % par défaut), garde les gestes manuels jusqu'au réveil et, dès que quelqu'un y a été détecté depuis le coucher, est présumée occupée : un dormeur que le détecteur ne voit plus n'arrête plus les ventilateurs ni la clim, et les ventilateurs suivent toujours la température.
+- Sommeil : on y entre avec le switch « Sommeil » (à toute heure, sieste comprise), avec une entité de sommeil choisie dans Configurer (capteur de lit, téléphone en charge…), ou la nuit en éteignant toutes les lumières à la main. On en sort avec le switch, l'entité, et toujours à l'heure de fin de nuit.
+- Lumières éteintes à la main la nuit : le switch « Contrôle manuel jusqu'au matin » est remplacé par le select « Extinction à la main la nuit » : contrôle manuel, sommeil jusqu'à ce que la pièce se vide (salon, par défaut pour une nouvelle pièce), ou sommeil jusqu'au réveil avec la pièce présumée occupée (chambre). Le switch actif devient « jusqu'au réveil », inactif « contrôle manuel ». Une extinction par une automatisation ou un script n'endort pas la pièce.
+- Réveil de fin de nuit : la lumière reste éteinte tant que la pièce ne s'est pas vidée ; les ventilateurs d'une pièce vide depuis longtemps s'arrêtent sans attendre un nouveau délai complet. Changer l'heure de fin de nuit déplace le réveil (et la fin de « Nuit maintenant »).
+- Entité de sommeil : seul un passage à « on » endort la pièce ; une entité restée « on » après le réveil du matin ne la rendort pas au redémarrage.
+- Avertissement avant extinction : une lumière faible (veilleuse, nuit sous 20 %) baisse à la moitié de sa luminosité au lieu de remonter à 20 % ; presque éteinte, elle s'éteint directement.
+- Contrôle manuel : une vitesse de ventilateur réglée à la main avant le coucher ou pendant le sommeil tient jusqu'au réveil, même quand le détecteur perd le dormeur. L'entrée du Journal est écrite une fois le geste terminé : deux lampes éteintes au coucher n'annoncent plus « pendant 30 min » avant le sommeil.
+- Hors sommeil, un geste manuel la nuit garde la durée réglée : éteindre un ventilateur ou régler la clim sans éteindre les lumières ne tient plus jusqu'au matin.
+- Capteur d'état : nouvelle valeur « En sommeil », prioritaire sur « Contrôle manuel ». Nouveaux attributs `sleeping`, `sleeping_until`, `sleep_source`, `presumed_occupied`, `sleep_entity` et `overrides_until_wake` (`overrides_until_morning` reste publié pour Lumina Card 0.2).
+
 ## 0.9.2 — 2026-10-21
 
 - Contrôle manuel : un contrôle manuel en cours (durée réglée ou jusqu'au matin) est repris après un redémarrage de Home Assistant. La lumière éteinte au coucher ne se rallume plus quand Home Assistant redémarre la nuit (mise à jour, coupure…). Une échéance déjà passée n'est pas reprise.

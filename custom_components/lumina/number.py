@@ -42,6 +42,7 @@ from .const import (
     SETTING_NIGHT_LIGHT_OFF_DELAY,
     SETTING_NIGHT_TEMP_THRESHOLD,
     SETTING_OVERRIDE_DURATION,
+    SETTING_SLEEP_BRIGHTNESS,
     SETTING_TEMP_THRESHOLD,
     SETTING_VACANCY_CONFIRM,
 )
@@ -122,6 +123,8 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         SETTING_NIGHT_TEMP_THRESHOLD, 18, 35, 0.5, UnitOfTemperature.CELSIUS,
         requires=_has_temperature,
     ),
+    # --- Sommeil ---
+    _number(SETTING_SLEEP_BRIGHTNESS, 0, 100, 1, PERCENTAGE, slider=True, requires=_has_lights),
     _number(SETTING_VACANCY_CONFIRM, 0, 600, 5, UnitOfTime.SECONDS),
     _number(SETTING_DAYLIGHT_OFF_LUX, 0, 5000, 10, LIGHT_LUX, requires=_has_illuminance),
     # --- Confort ---

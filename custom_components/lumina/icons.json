@@ -25,8 +25,11 @@
           "off": "mdi:snowflake-off"
         }
       },
-      "night_override_until_morning": {
-        "default": "mdi:weather-night"
+      "sleeping": {
+        "default": "mdi:sleep",
+        "state": {
+          "off": "mdi:sleep-off"
+        }
       }
     },
     "number": {
@@ -86,6 +89,9 @@
       },
       "fan_mix_speed": {
         "default": "mdi:fan-speed-1"
+      },
+      "sleep_brightness": {
+        "default": "mdi:lightbulb-night"
       }
     },
     "sensor": {
@@ -93,7 +99,8 @@
         "default": "mdi:home-account",
         "state": {
           "vacant": "mdi:home-outline",
-          "override": "mdi:hand-back-right"
+          "override": "mdi:hand-back-right",
+          "sleeping": "mdi:sleep"
         }
       },
       "apparent_temperature": {
@@ -129,6 +136,12 @@
       },
       "fans_with_climate": {
         "default": "mdi:fan"
+      },
+      "bedtime_gesture": {
+        "default": "mdi:lightbulb-night-outline",
+        "state": {
+          "until_wake": "mdi:bed-outline"
+        }
       }
     },
     "button": {

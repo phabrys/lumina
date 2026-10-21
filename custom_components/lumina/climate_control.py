@@ -52,6 +52,11 @@ class ClimateControl(RoomBase):
     # Clim en pièce vide (jour / nuit)
     climate_actions: dict[str, str]
 
+    @property
+    def occupied_or_presumed(self) -> bool:
+        """Pièce occupée, ou présumée occupée par un dormeur que le détecteur ne voit plus."""
+        raise NotImplementedError
+
     def _init_climate(self, actions: dict[str, str]) -> None:
         self.climate_actions = actions
         # État des clims avant l'action en pièce vide, pour le rétablir au retour
@@ -68,7 +73,7 @@ class ClimateControl(RoomBase):
 
     def _climate_action(self) -> str:
         """Action sur les clims en pièce vide, pour la période en cours."""
-        key = SELECT_CLIMATE_VACANT_NIGHT if self.is_night else SELECT_CLIMATE_VACANT_DAY
+        key = SELECT_CLIMATE_VACANT_NIGHT if self.night_rules else SELECT_CLIMATE_VACANT_DAY
         return self.climate_actions[key]
 
     def _needs_vacant_action(self, group: ActuatorGroup) -> bool:
@@ -131,7 +136,7 @@ class ClimateControl(RoomBase):
     def _evaluate_climate(self) -> None:
         """Retour dans la pièce : rétablit les clims modifiées en son absence."""
         group = self.groups[KIND_CLIMATE]
-        if not group.entity_ids or not self.occupied:
+        if not group.entity_ids or not self.occupied_or_presumed:
             return
         group.cancel_off_timer()
         saved, action, saved_at = (

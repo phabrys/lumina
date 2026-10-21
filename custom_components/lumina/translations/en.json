@@ -19,7 +19,8 @@
           "climates": "Air conditioners",
           "temperature_sensor": "Temperature sensor",
           "presence_hold": "Presence hold",
-          "humidity_sensor": "Humidity sensor"
+          "humidity_sensor": "Humidity sensor",
+          "sleep_entity": "Sleep entity"
         },
         "data_description": {
           "presence_sensors": "The room is occupied as soon as one of these sensors is on.",
@@ -29,7 +30,8 @@
           "climates": "Lumina never turns them on. Empty room: off, eco or a raised setpoint as configured, then back to the previous state when someone returns.",
           "temperature_sensor": "Without a sensor, fans follow presence only.",
           "presence_hold": "TV, speaker…: while one of these entities is active, the room stays occupied even if the sensors no longer detect anyone.",
-          "humidity_sensor": "With humidity, fans follow the apparent (feels-like) temperature instead of the measured one."
+          "humidity_sensor": "With humidity, fans follow the apparent (feels-like) temperature instead of the measured one.",
+          "sleep_entity": "Bed occupied, phone charging, input_boolean…: on puts the room to sleep, off wakes it. Pick a stable entity: getting up for a few minutes should not turn it off."
         }
       }
     },
@@ -54,7 +56,8 @@
           "climates": "Air conditioners",
           "temperature_sensor": "Temperature sensor",
           "presence_hold": "Presence hold",
-          "humidity_sensor": "Humidity sensor"
+          "humidity_sensor": "Humidity sensor",
+          "sleep_entity": "Sleep entity"
         },
         "data_description": {
           "presence_sensors": "The room is occupied as soon as one of these sensors is on.",
@@ -64,7 +67,8 @@
           "climates": "Lumina never turns them on. Empty room: off, eco or a raised setpoint as configured, then back to the previous state when someone returns.",
           "temperature_sensor": "Without a sensor, fans follow presence only.",
           "presence_hold": "TV, speaker…: while one of these entities is active, the room stays occupied even if the sensors no longer detect anyone.",
-          "humidity_sensor": "With humidity, fans follow the apparent (feels-like) temperature instead of the measured one."
+          "humidity_sensor": "With humidity, fans follow the apparent (feels-like) temperature instead of the measured one.",
+          "sleep_entity": "Bed occupied, phone charging, input_boolean…: on puts the room to sleep, off wakes it. Pick a stable entity: getting up for a few minutes should not turn it off."
         }
       }
     },
@@ -93,8 +97,24 @@
       "auto_climate": {
         "name": "Automatic AC control"
       },
-      "night_override_until_morning": {
-        "name": "Manual control until morning (night)"
+      "sleeping": {
+        "name": "Sleep",
+        "state_attributes": {
+          "until": {
+            "name": "Until"
+          },
+          "source": {
+            "name": "Source",
+            "state": {
+              "manual": "Switch",
+              "entity": "Sleep entity",
+              "lights_off": "Lights turned off by hand"
+            }
+          },
+          "presence_seen": {
+            "name": "Presence seen since bedtime"
+          }
+        }
       }
     },
     "number": {
@@ -154,6 +174,9 @@
       },
       "fan_mix_speed": {
         "name": "Air circulation speed"
+      },
+      "sleep_brightness": {
+        "name": "Sleep brightness (night light)"
       }
     },
     "sensor": {
@@ -162,7 +185,8 @@
         "state": {
           "occupied": "Occupied",
           "vacant": "Vacant",
-          "override": "Manual override"
+          "override": "Manual override",
+          "sleeping": "Sleeping"
         },
         "state_attributes": {
           "occupied": {
@@ -264,6 +288,43 @@
           },
           "climates": {
             "name": "Air conditioners"
+          },
+          "sleeping": {
+            "name": "Sleeping"
+          },
+          "sleeping_until": {
+            "name": "Sleeping until"
+          },
+          "sleep_source": {
+            "name": "Sleep source",
+            "state": {
+              "manual": "Switch",
+              "entity": "Sleep entity",
+              "lights_off": "Lights turned off by hand"
+            }
+          },
+          "presumed_occupied": {
+            "name": "Presumed occupied"
+          },
+          "sleep_entity": {
+            "name": "Sleep entity"
+          },
+          "overrides_until_wake": {
+            "name": "Manual control until wake-up"
+          },
+          "sleep_presence_seen": {
+            "name": "Presence seen since bedtime"
+          },
+          "bedtime_gesture": {
+            "name": "Turning off by hand at night",
+            "state": {
+              "override": "Manual control (set duration)",
+              "until_vacant": "Sleep until the room empties (living room)",
+              "until_wake": "Sleep until wake-up, room presumed occupied (bedroom)"
+            }
+          },
+          "lights_held": {
+            "name": "Lights kept off until the room empties"
           }
         }
       },
@@ -318,6 +379,14 @@
           "normal": "Follow temperature",
           "mix": "Air circulation",
           "off": "Stopped"
+        }
+      },
+      "bedtime_gesture": {
+        "name": "Turning off by hand at night",
+        "state": {
+          "override": "Manual control (set duration)",
+          "until_vacant": "Sleep until the room empties (living room)",
+          "until_wake": "Sleep until wake-up, room presumed occupied (bedroom)"
         }
       }
     },

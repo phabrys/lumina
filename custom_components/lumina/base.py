@@ -71,8 +71,12 @@ class ActuatorGroup:
     override_timer: CALLBACK_TYPE | None = None
     # Instant (horloge de la boucle) du début de la reprise manuelle
     override_started: float | None = None
-    # Reprise manuelle qui tient jusqu'à la fin de la nuit
-    override_morning: bool = False
+    # Reprise manuelle qui tient jusqu'à la fin du sommeil
+    override_until_wake: bool = False
+    # Reprise due à un allumage à la main (elle garde la durée réglée)
+    override_turned_on: bool = False
+    # Entrée de journal différée de la reprise manuelle
+    override_log_timer: CALLBACK_TYPE | None = None
     # Lumières baissées en attendant l'extinction
     warning: bool = False
     # Luminosité (0-255) de chaque lumière avant l'avertissement
@@ -102,7 +106,10 @@ class ActuatorGroup:
         self.override_timer = None
         self.override_until = None
         self.override_started = None
-        self.override_morning = False
+        self.override_until_wake = False
+        self.override_turned_on = False
+        cancel_timer(self.override_log_timer)
+        self.override_log_timer = None
 
     def cancel_cycle_timer(self) -> None:
         cancel_timer(self.cycle_timer)
@@ -130,6 +137,7 @@ class RoomBase:
     hass: HomeAssistant
     name: str
     period: str
+    sleeping: bool
     settings: dict[str, float]
     groups: dict[str, ActuatorGroup]
     occupied: bool
@@ -159,8 +167,13 @@ class RoomBase:
     def is_night(self) -> bool:
         return self.period == PERIOD_NIGHT
 
+    @property
+    def night_rules(self) -> bool:
+        """Réglages de nuit : la nuit, ou en sommeil (sieste comprise)."""
+        return self.is_night or self.sleeping
+
     def _setting(self, day_key: str, night_key: str) -> float:
-        return self.settings[night_key if self.is_night else day_key]
+        return self.settings[night_key if self.night_rules else day_key]
 
     # --- États -------------------------------------------------------------
 

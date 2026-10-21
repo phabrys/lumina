@@ -6,15 +6,21 @@ import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
+from homeassistant.const import STATE_OFF, STATE_ON, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.restore_state import async_get as async_get_restore_data
 
 from .const import (
+    BEDTIME_OVERRIDE,
+    BEDTIME_UNTIL_WAKE,
     CONF_CLIMATES,
     CONF_FANS,
     CONF_LIGHTS,
     CONF_PRESENCE,
     CONF_PRESENCE_HOLD,
+    DOMAIN,
+    LEGACY_NIGHT_OVERRIDE_SWITCH,
 )
 from .controller import RoomController
 
@@ -47,6 +53,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LuminaConfigEntry) -> bo
     config = entry.options or entry.data
     controller = RoomController(hass, entry.title, config)
     entry.runtime_data = controller
+    _migrate_night_override_switch(hass, entry, controller)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -54,6 +61,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: LuminaConfigEntry) -> bo
     entry.async_on_unload(controller.async_stop)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     return True
+
+
+def _migrate_night_override_switch(
+    hass: HomeAssistant, entry: LuminaConfigEntry, controller: RoomController
+) -> None:
+    """Remplace le switch « contrôle manuel jusqu'au matin » (avant 0.10.0) par le select.
+
+    Actif, il tenait l'extinction du coucher jusqu'au matin, même quand le
+    détecteur perdait le dormeur : c'est le sommeil jusqu'au réveil.
+    """
+    ent_reg = er.async_get(hass)
+    entity_id = ent_reg.async_get_entity_id(
+        "switch", DOMAIN, f"{entry.entry_id}_{LEGACY_NIGHT_OVERRIDE_SWITCH}"
+    )
+    if entity_id is None:
+        return
+    stored = async_get_restore_data(hass).last_states.get(entity_id)
+    if stored is not None and stored.state.state in (STATE_ON, STATE_OFF):
+        controller.set_bedtime_gesture(
+            BEDTIME_UNTIL_WAKE if stored.state.state == STATE_ON else BEDTIME_OVERRIDE,
+            reevaluate=False,
+        )
+    ent_reg.async_remove(entity_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: LuminaConfigEntry) -> bool:

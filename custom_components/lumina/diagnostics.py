@@ -53,7 +53,6 @@ async def async_get_config_entry_diagnostics(
             "settings": dict(controller.settings),
             "times": {key: value.isoformat() for key, value in controller.times.items()},
             "climate_actions": dict(controller.climate_actions),
-            "night_override_until_morning": controller.night_override_until_morning,
             "groups": {
                 kind: {
                     "entity_ids": group.entity_ids,

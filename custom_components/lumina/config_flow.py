@@ -29,11 +29,13 @@ from .const import (
     CONF_LIGHTS,
     CONF_PRESENCE,
     CONF_PRESENCE_HOLD,
+    CONF_SLEEP,
     CONF_TEMPERATURE,
     DOMAIN,
 )
 
 PRESENCE_DEVICE_CLASSES = ["motion", "occupancy", "presence"]
+SLEEP_DOMAINS = ["binary_sensor", "input_boolean", "switch"]
 HOLD_DOMAINS = ["media_player", "binary_sensor", "switch", "input_boolean", "remote", "climate"]
 
 
@@ -166,6 +168,9 @@ def _entities_schema(defaults: dict[str, Any]) -> vol.Schema:
                         domain="sensor", device_class="humidity"
                     )
                 )
+            ),
+            vol.Optional(CONF_SLEEP, description=suggested(CONF_SLEEP)): (
+                selector.EntitySelector(selector.EntitySelectorConfig(domain=SLEEP_DOMAINS))
             ),
         }
     )

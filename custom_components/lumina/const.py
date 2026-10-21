@@ -17,6 +17,8 @@ CONF_FANS: Final = "fans"
 CONF_CLIMATES: Final = "climates"
 CONF_PRESENCE_HOLD: Final = "presence_hold"
 CONF_HUMIDITY: Final = "humidity_sensor"
+# Entité qui met la pièce en sommeil (lit, téléphone en charge, input_boolean…)
+CONF_SLEEP: Final = "sleep_entity"
 
 # États d'une entité de maintien de présence considérés comme inactifs
 HOLD_INACTIVE_STATES: Final = frozenset(
@@ -50,6 +52,8 @@ SETTING_NIGHT_BRIGHTNESS: Final = "night_brightness"
 SETTING_NIGHT_LIGHT_OFF_DELAY: Final = "night_light_off_delay"
 SETTING_NIGHT_FAN_OFF_DELAY: Final = "night_fan_off_delay"
 SETTING_NIGHT_TEMP_THRESHOLD: Final = "night_temperature_threshold"
+# Veilleuse en sommeil (0 = pas d'allumage automatique)
+SETTING_SLEEP_BRIGHTNESS: Final = "sleep_brightness"
 
 DEFAULT_SETTINGS: Final[dict[str, float]] = {
     SETTING_LUX_THRESHOLD: 50,  # lx
@@ -63,6 +67,7 @@ DEFAULT_SETTINGS: Final[dict[str, float]] = {
     # Long par défaut : un PIR ne détecte pas un dormeur immobile.
     SETTING_NIGHT_FAN_OFF_DELAY: 1800,  # s
     SETTING_NIGHT_TEMP_THRESHOLD: 26.0,  # °C
+    SETTING_SLEEP_BRIGHTNESS: 0,  # %
     # Vitesse des ventilateurs au seuil (0 = simple marche/arrêt),
     # puis montée jusqu'à 100 % sur la plage de température indiquée.
     SETTING_FAN_MIN_SPEED: 33,  # %
@@ -117,6 +122,8 @@ LOG_THROTTLE: Final = 600  # s
 
 # Luminosité appliquée pendant l'avertissement avant extinction
 WARNING_BRIGHTNESS: Final = 20  # %
+# En dessous (sur 255), la lumière s'éteint sans avertissement
+WARNING_MIN_BRIGHTNESS: Final = 3
 
 # Plage de nuit (entités time, restaurées au redémarrage)
 TIME_NIGHT_START: Final = "night_start"
@@ -130,6 +137,22 @@ DEFAULT_TIMES: Final[dict[str, time]] = {
 PERIOD_DAY: Final = "day"
 PERIOD_NIGHT: Final = "night"
 
+# Origine du sommeil : switch, entité choisie, ou lumières éteintes la nuit
+SLEEP_MANUAL: Final = "manual"
+SLEEP_ENTITY: Final = "entity"
+SLEEP_LIGHTS_OFF: Final = "lights_off"
+
+# Lumières éteintes à la main la nuit : simple contrôle manuel, sommeil levé
+# quand la pièce se vide (salon), ou sommeil jusqu'au réveil avec la pièce
+# présumée occupée (chambre)
+BEDTIME_OVERRIDE: Final = "override"
+BEDTIME_UNTIL_VACANT: Final = "until_vacant"
+BEDTIME_UNTIL_WAKE: Final = "until_wake"
+BEDTIME_MODES: Final = [BEDTIME_OVERRIDE, BEDTIME_UNTIL_VACANT, BEDTIME_UNTIL_WAKE]
+SELECT_BEDTIME: Final = "bedtime_gesture"
+# Switch d'avant 0.10.0 (« contrôle manuel jusqu'au matin »), repris par le select
+LEGACY_NIGHT_OVERRIDE_SWITCH: Final = "night_override_until_morning"
+
 # Hystérésis appliquée à la température pour éviter les bascules répétées
 TEMP_HYSTERESIS: Final = 1.0
 
@@ -137,7 +160,8 @@ TEMP_HYSTERESIS: Final = 1.0
 ROOM_OCCUPIED: Final = "occupied"
 ROOM_VACANT: Final = "vacant"
 ROOM_OVERRIDE: Final = "override"
-ROOM_STATES: Final = [ROOM_OCCUPIED, ROOM_VACANT, ROOM_OVERRIDE]
+ROOM_SLEEPING: Final = "sleeping"
+ROOM_STATES: Final = [ROOM_OCCUPIED, ROOM_VACANT, ROOM_OVERRIDE, ROOM_SLEEPING]
 
 # Clim en pièce vide : action appliquée après le délai, le jour et la nuit
 CLIMATE_ACTION_OFF: Final = "off"
