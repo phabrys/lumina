@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # requirements_test.txt et requirements_lint.txt ; la version minimale de
+  # HA (tests/requirements_min.txt) ne bouge qu'avec hacs.json.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

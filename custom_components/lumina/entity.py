@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity import Entity
+from homeassistant.loader import async_get_loaded_integration
 
 from . import LuminaConfigEntry
 from .const import DOMAIN
@@ -23,8 +24,10 @@ class LuminaEntity(Entity):
             identifiers={(DOMAIN, entry.entry_id)},
             name="Lumina",
             manufacturer="Lumina",
-            model="Contrôleur de pièce",
             entry_type=DeviceEntryType.SERVICE,
+            sw_version=str(
+                async_get_loaded_integration(self._controller.hass, DOMAIN).version
+            ),
             suggested_area=entry.title,
         )
 

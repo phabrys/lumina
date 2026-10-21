@@ -19,10 +19,10 @@ stateDiagram-v2
     Manuel --> Vide : pièce vide\nou fin du délai
 ```
 
-- **Présence** : la pièce n'est considérée vide qu'après un court délai sans détection (30 s par défaut). Une micro-coupure du détecteur n'éteint donc rien et ne lève pas le contrôle manuel. Les délais d'extinction restent comptés depuis la fin réelle de présence.
+- **Présence** : la pièce n'est considérée vide qu'après un court délai sans détection (30 s par défaut). Une micro-coupure du détecteur n'éteint donc rien et ne lève pas le contrôle manuel. Les délais d'extinction restent comptés depuis la fin réelle de présence. Un détecteur indisponible (redémarrage de Zigbee2MQTT…) ne vide pas la pièce : l'occupation en cours est gardée jusqu'à ce qu'il réponde de nouveau.
 - **Lumières** : allumées à l'arrivée si la luminosité est sous le seuil (toujours, s'il n'y a pas de capteur de luminosité). Si le capteur choisi ne répond pas, Lumina se fie au soleil (`sun.sun`) : allumage seulement s'il est couché. Éteintes quand la pièce est vide depuis le délai réglé.
 - **Ventilateurs** : allumés quand la pièce est occupée et que la température atteint le seuil, arrêtés 1 °C en dessous (hystérésis), avec au moins 5 min entre deux bascules dues à la température. Sans capteur de température, ils suivent simplement la présence.
-- **Contrôle manuel** : allumer ou éteindre une lumière ou un ventilateur à la main suspend l'automatisme de ce groupe pendant la durée réglée. Plusieurs changements en moins de 5 s (deux lampes, extinction + vitesse) comptent pour un seul geste. La reprise manuelle est levée dès que la pièce est confirmée vide. La nuit, un geste manuel tient jusqu'à la fin de la nuit (switch **Contrôle manuel jusqu'au matin**, actif par défaut) : la lumière éteinte au coucher ne se rallume pas au bout de la durée réglée.
+- **Contrôle manuel** : allumer ou éteindre une lumière ou un ventilateur à la main suspend l'automatisme de ce groupe pendant la durée réglée. Plusieurs changements en moins de 5 s (deux lampes, extinction + vitesse) comptent pour un seul geste. Un appareil lent (cloud, clim) qui confirme une commande de Lumina jusqu'à 1 min plus tard ne compte pas comme un geste manuel. La reprise manuelle est levée dès que la pièce est confirmée vide. La nuit, un geste manuel tient jusqu'à la fin de la nuit (switch **Contrôle manuel jusqu'au matin**, actif par défaut) : la lumière éteinte au coucher ne se rallume pas au bout de la durée réglée.
 
 ### Mode nuit
 
@@ -38,7 +38,7 @@ Le switch **Nuit maintenant** force le mode nuit tout de suite ; il se désactiv
 
 ### Clims
 
-Lumina n'allume jamais une clim : il agit seulement quand la pièce se vide.
+Lumina n'allume jamais une clim : il agit seulement quand la pièce se vide, et seulement sur une clim qui refroidit ou chauffe (pas en simple ventilation).
 
 - **Pièce vide** : après le délai réglé (15 min par défaut), la clim est éteinte, passée en `eco` ou sa consigne est relevée de 2 °C, selon le réglage du jour et celui de la nuit. La nuit, Lumina ne fait rien par défaut : un détecteur peut ne pas voir un dormeur.
 - **Retour dans la pièce** : si quelqu'un revient dans les 2 h, la clim retrouve l'état qu'elle avait (mode, preset ou consigne). Au-delà, elle reste telle quelle.
@@ -52,7 +52,7 @@ Une clim gérée par Lumina ne peut pas servir de maintien de présence, sinon l
 - **Maintien de présence** : une TV, une enceinte (ou une clim non gérée par Lumina) active garde la pièce occupée quand les détecteurs ne voient plus personne (devant la TV sans bouger, par exemple). Le maintien prolonge une présence, il ne la déclenche pas. Une pièce occupée le reste après un redémarrage de Home Assistant tant que le maintien est actif : l'occupation d'avant le redémarrage est reprise, puis levée après la confirmation d'absence si plus rien ne la justifie.
 - **Température ressentie** : avec un capteur d'humidité, les ventilateurs suivent l'indice de chaleur (NOAA) plutôt que la température mesurée. 27 °C à 85 % d'humidité se ressentent comme 30 °C.
 - **Vitesse progressive** : les ventilateurs démarrent à la vitesse minimale (33 %) au seuil, puis montent jusqu'à 100 % sur l'écart réglé (3 °C). Une vitesse minimale à 0 revient au simple marche/arrêt. Changer la vitesse à la main compte comme une reprise manuelle.
-- **Avertissement avant extinction** : les lumières baissent à 20 % pendant 15 s avant de s'éteindre. Un mouvement pendant ce temps rétablit la lumière.
+- **Avertissement avant extinction** : les lumières baissent à 20 % pendant 15 s avant de s'éteindre. Un mouvement pendant ce temps rend à chaque lumière la luminosité qu'elle avait avant.
 - **Teinte** : 4000 K le jour, 2700 K la nuit, pour les lumières à blanc réglable (0 = ne pas modifier).
 - **Journal** : chaque décision apparaît dans le Journal avec sa raison, dans la langue de Home Assistant (français ou anglais), par exemple « allume les lumières à 30 % (nuit, 12 lx) ». Les ajustements de vitesse fréquents sont regroupés (une entrée toutes les 10 min au plus).
 - **Lumière du jour** : avec un seuil d'extinction réglé, les lumières s'éteignent quand le capteur mesure au moins cette valeur pendant 5 min. Règle-le **au-dessus** de ce que mesure le capteur lampes allumées, sinon la lampe s'éteindrait d'elle-même. Après une telle extinction, l'allumage automatique ne reprend qu'après 10 min sous le seuil d'allumage, ou quand la pièce se vide.

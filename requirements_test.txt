@@ -1,2 +1,5 @@
-pytest-homeassistant-custom-component
+# Version épinglée : chaque version suit une version précise de Home Assistant
+# (0.13.373 = HA 2026.10.2). Dependabot propose les mises à jour.
+pytest-homeassistant-custom-component==0.13.373
 pytest-github-actions-annotate-failures
+mypy==2.4.0
