@@ -198,8 +198,13 @@ class RoomController(ClimateControl, DaylightControl):
         self._sleep_presence_seen = False
         # Lumières éteintes à la main la nuit : contrôle manuel ou sommeil
         self.bedtime_gesture = BEDTIME_UNTIL_VACANT
-        # Réveil du matin : pas d'allumage tant que la pièce ne s'est pas vidée
-        self.lights_held = False
+        # Réveil du matin : pas d'allumage tant que la pièce ne s'est pas vidée,
+        # au plus pendant la durée du contrôle manuel
+        self.lights_held_until: datetime | None = None
+        self._lights_held_timer: CALLBACK_TYPE | None = None
+        # Veilleuse allumée par Lumina pendant ce sommeil : l'éteindre à la
+        # main est un refus qui tient jusqu'au réveil.
+        self._night_light_lit = False
         self._init_climate(dict(DEFAULT_CLIMATE_ACTIONS))
         self._init_daylight()
         # Ventilateurs pendant que la clim tourne
@@ -244,9 +249,10 @@ class RoomController(ClimateControl, DaylightControl):
         self.occupied = True
 
     @callback
-    def restore_lights_held(self) -> None:
+    def restore_lights_held(self, until: datetime) -> None:
         """Lumière gardée éteinte après le réveil, avant le redémarrage."""
-        self.lights_held = bool(self.groups[KIND_LIGHTS].entity_ids)
+        if self.groups[KIND_LIGHTS].entity_ids and until > dt_util.utcnow():
+            self._hold_lights(until)
 
     @callback
     def restore_override(self, kind: str, until: datetime, *, until_wake: bool) -> None:
@@ -289,6 +295,7 @@ class RoomController(ClimateControl, DaylightControl):
             group.cancel_cycle_timer()
         self._reset_daylight()
         self._cancel_vacancy()
+        self._release_lights()
 
     def _track(
         self,
@@ -352,11 +359,21 @@ class RoomController(ClimateControl, DaylightControl):
         changed = self.times[key] != value
         self.times[key] = value
         if changed and key == TIME_NIGHT_END:
-            # Nouvelle fin de nuit : la nuit forcée et le sommeil la suivent.
-            if self.forced_night:
-                self.forced_night_until = self._next_night_end()
-            if self.sleeping:
-                self._set_sleeping_until(self._next_night_end())
+            # Nouvelle fin de nuit, le même jour que l'échéance en cours : déjà
+            # passée, la nuit forcée et le sommeil prennent fin tout de suite.
+            now = dt_util.utcnow()
+            if self.forced_night and self.forced_night_until is not None:
+                until = self._moved_night_end(self.forced_night_until)
+                self.forced_night = until > now
+                self.forced_night_until = until if self.forced_night else None
+            if self.sleeping and self.sleeping_until is not None:
+                until = self._moved_night_end(self.sleeping_until)
+                if until > now:
+                    self._set_sleeping_until(until)
+                else:
+                    self._wake(reason="morning", reevaluate=False)
+                    if reevaluate:
+                        self._log_morning_wake()
         self._natural_period = self._compute_natural_period()
         self.period = self._effective_period()
         self._refresh(reevaluate)
@@ -412,9 +429,14 @@ class RoomController(ClimateControl, DaylightControl):
         source: str = SLEEP_MANUAL,
         until: datetime | None = None,
         presence_seen: bool | None = None,
+        restored: bool = False,
         reevaluate: bool = True,
     ) -> None:
-        """Met la pièce en sommeil (jusqu'à la prochaine fin de nuit) ou la réveille."""
+        """Met la pièce en sommeil (jusqu'à la prochaine fin de nuit) ou la réveille.
+
+        `restored` : sommeil d'avant un redémarrage. Les contrôles manuels sont
+        restaurés à part avec leur propre échéance, ils ne sont pas convertis.
+        """
         if sleeping and until is None:
             until = self._next_night_end()
         if sleeping and until is not None and until <= dt_util.utcnow():
@@ -430,14 +452,21 @@ class RoomController(ClimateControl, DaylightControl):
         self.sleeping = True
         self.sleep_source = source
         if not was_sleeping:
-            self.lights_held = False
+            self._release_lights()
+            self._night_light_lit = False
             self._sleep_presence_seen = (
                 self.occupied if presence_seen is None else presence_seen
             )
             for group in self.groups.values():
-                # Ce qui a été éteint ou réglé à la main avant le coucher tient
-                # jusqu'au réveil. Un groupe allumé à la main garde sa durée.
-                if group.overridden and not group.override_turned_on:
+                if restored or not group.overridden or group.override_turned_on:
+                    continue  # un allumage à la main garde sa durée
+                if group.kind == KIND_LIGHTS:
+                    # Le sommeil empêche déjà l'allumage : une lumière éteinte
+                    # au coucher n'a pas besoin de contrôle manuel, et la
+                    # veilleuse reste possible.
+                    group.clear_override()
+                else:
+                    # Ventilateur ou clim réglés au coucher : jusqu'au réveil
                     group.override_until_wake = True
         if until != self.sleeping_until:
             self._set_sleeping_until(until)
@@ -460,25 +489,68 @@ class RoomController(ClimateControl, DaylightControl):
         """Fin du sommeil : les gestes tenus jusqu'au réveil prennent fin.
 
         Au réveil du matin (heure seule), la lumière reste éteinte tant que la
-        pièce ne s'est pas vidée : le dormeur qui bouge à 7 h ne s'éclaire pas.
+        pièce ne s'est pas vidée : le dormeur qui bouge à 7 h ne s'éclaire pas,
+        même si le détecteur ne le voyait plus. Ce maintien dure au plus la
+        durée du contrôle manuel, pour qui reviendrait dans une pièce vidée.
         """
+        hold = (
+            reason == "morning"
+            and self.occupied_or_presumed
+            and bool(self.groups[KIND_LIGHTS].entity_ids)
+            and self.settings[SETTING_OVERRIDE_DURATION] > 0
+        )
         self.sleeping = False
         self.sleeping_until = None
         self.sleep_source = None
         self._sleep_presence_seen = False
+        self._night_light_lit = False
         for group in self.groups.values():
             if group.override_until_wake:
                 group.clear_override()
-        self.lights_held = (
-            reason == "morning"
-            and self.occupied
-            and bool(self.groups[KIND_LIGHTS].entity_ids)
-        )
+        if hold:
+            minutes = self.settings[SETTING_OVERRIDE_DURATION]
+            self._hold_lights(dt_util.utcnow() + timedelta(minutes=minutes))
+        else:
+            self._release_lights()
         if not reevaluate:
             self._notify()
             return
         self._log(f"sleep_ended_{reason}")
         self._reevaluate_with_vacancy_credit()
+
+    @property
+    def lights_held(self) -> bool:
+        return self.lights_held_until is not None
+
+    def _hold_lights(self, until: datetime) -> None:
+        """Garde la lumière éteinte jusqu'à `until` (ou jusqu'à ce que la pièce se vide)."""
+
+        @callback
+        def _hold_end(_now: datetime) -> None:
+            self._lights_held_timer = None
+            self.lights_held_until = None
+            self._log("lights_hold_end")
+            self.async_reevaluate()
+
+        cancel_timer(self._lights_held_timer)
+        self.lights_held_until = until
+        self._lights_held_timer = async_call_later(
+            self.hass, until - dt_util.utcnow(), _hold_end
+        )
+
+    def _release_lights(self) -> None:
+        cancel_timer(self._lights_held_timer)
+        self._lights_held_timer = None
+        self.lights_held_until = None
+
+    def _log_morning_wake(self) -> None:
+        if self.lights_held_until is not None:
+            self._log(
+                "sleep_ended_morning_held",
+                time=dt_util.as_local(self.lights_held_until).strftime("%H:%M"),
+            )
+        else:
+            self._log("sleep_ended_morning")
 
     def _sleep_entity_state(self) -> str | None:
         """État exploitable de l'entité de sommeil, None si absente ou muette."""
@@ -507,6 +579,12 @@ class RoomController(ClimateControl, DaylightControl):
     @property
     def occupied_or_presumed(self) -> bool:
         return self.occupied or self.presumed_occupied
+
+    def _moved_night_end(self, until: datetime) -> datetime:
+        """Échéance `until` ramenée à la nouvelle heure de fin de nuit, même jour."""
+        end = self.times[TIME_NIGHT_END]
+        local = dt_util.as_local(until).replace(hour=end.hour, minute=end.minute)
+        return dt_util.as_utc(local)
 
     def _next_night_end(self) -> datetime:
         """Prochaine occurrence de l'heure de fin de nuit (même sans plage de nuit)."""
@@ -556,6 +634,7 @@ class RoomController(ClimateControl, DaylightControl):
             "sleep_entity": self.sleep_entity,
             "bedtime_gesture": self.bedtime_gesture,
             "lights_held": self.lights_held,
+            "lights_held_until": self.lights_held_until,
             "lights_mode": lights.mode,
             "fans_mode": fans.mode,
             "daylight_locked": self.daylight_locked,
@@ -601,7 +680,7 @@ class RoomController(ClimateControl, DaylightControl):
                 group.clear_override()
                 resumed = True
         if self.lights_held:
-            self.lights_held = False
+            self._release_lights()
             resumed = True
         if resumed:
             self._log("resumed")
@@ -760,6 +839,7 @@ class RoomController(ClimateControl, DaylightControl):
         targets = self._to_turn_on(group)
         if targets:
             self._turn_on_lights(group, brightness, targets)
+            self._night_light_lit = self.sleeping
             self._log("lights_on", brightness=brightness, reason=self._reason())
 
     def _turn_on_lights(
@@ -1119,7 +1199,7 @@ class RoomController(ClimateControl, DaylightControl):
     def _set_vacant(self) -> None:
         """Pièce vide confirmée : levée des reprises manuelles, extinctions."""
         self.occupied = False
-        self.lights_held = False
+        self._release_lights()
         _LOGGER.debug("%s : pièce vide", self.name)
         if (
             self.sleeping
@@ -1172,7 +1252,7 @@ class RoomController(ClimateControl, DaylightControl):
         if woke:
             # Heure de fin de nuit : le sommeil prend fin, même oublié.
             self._wake(reason="morning", reevaluate=False)
-            self._log("sleep_ended_morning")
+            self._log_morning_wake()
         self._natural_period = self._compute_natural_period()
         period = self._effective_period()
         changed = period != self.period
@@ -1291,10 +1371,14 @@ class RoomController(ClimateControl, DaylightControl):
         group.cancel_cycle_timer()
         if group.kind == KIND_CLIMATE:
             self._clear_climate_saved()  # la clim est reprise en main
+        if group.kind == KIND_LIGHTS:
+            self._release_lights()  # geste sur la lumière : elle est rendue
+            if self.sleeping and not turned_on and not self._night_light_lit:
+                # Le sommeil la garde déjà éteinte. Seule une veilleuse éteinte
+                # à la main est un refus tenu jusqu'au réveil.
+                return
         group.override_started = now
         group.override_turned_on = turned_on
-        if group.kind == KIND_LIGHTS:
-            self.lights_held = False  # geste sur la lumière : elle est rendue
         if self.sleeping and self.sleeping_until is not None and not turned_on:
             # En sommeil, un geste tient jusqu'au réveil. Un allumage à la main
             # garde la durée réglée, pour ne pas laisser une lumière allumée

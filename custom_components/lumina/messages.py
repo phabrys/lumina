@@ -31,9 +31,12 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "sleep_started_lights_off": "passe en sommeil jusqu'à {time} (lumières éteintes à la main)",
         "sleep_ended_manual": "sort du sommeil",
         "sleep_ended_entity": "sort du sommeil (entité de sommeil)",
-        "sleep_ended_morning": (
-            "sort du sommeil, fin de la nuit ; lumière éteinte jusqu'à ce que la pièce se vide"
+        "sleep_ended_morning": "sort du sommeil, fin de la nuit",
+        "sleep_ended_morning_held": (
+            "sort du sommeil, fin de la nuit ; lumière éteinte jusqu'à ce que la pièce "
+            "se vide, {time} au plus tard"
         ),
+        "lights_hold_end": "reprend l'allumage des lumières après le réveil",
         "sleep_ended_vacant": "sort du sommeil, pièce vide",
         # Lumières
         "lights_restored": "rétablit les lumières, présence de retour ({reason})",
@@ -85,7 +88,12 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "sleep_started_lights_off": "goes to sleep until {time} (lights turned off by hand)",
         "sleep_ended_manual": "wakes up",
         "sleep_ended_entity": "wakes up (sleep entity)",
-        "sleep_ended_morning": "wakes up, end of the night; lights stay off until the room empties",
+        "sleep_ended_morning": "wakes up, end of the night",
+        "sleep_ended_morning_held": (
+            "wakes up, end of the night; lights stay off until the room empties, "
+            "{time} at the latest"
+        ),
+        "lights_hold_end": "resumes turning the lights on after wake-up",
         "sleep_ended_vacant": "wakes up, room empty",
         "lights_restored": "restores the lights, presence back ({reason})",
         "lights_on": "turns on the lights at {brightness:g} % ({reason})",

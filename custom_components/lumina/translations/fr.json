@@ -325,6 +325,9 @@
           },
           "lights_held": {
             "name": "Lumière gardée éteinte jusqu'à ce que la pièce se vide"
+          },
+          "lights_held_until": {
+            "name": "Lumière gardée éteinte jusqu'à"
           }
         }
       },

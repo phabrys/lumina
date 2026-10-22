@@ -51,8 +51,10 @@ class LuminaRoomStateSensor(LuminaEntity, SensorEntity, RestoreEntity):
         attrs = last_state.attributes
         if attrs.get("occupied") is True:
             self._controller.restore_occupied()
-            if attrs.get("lights_held") is True:
-                self._controller.restore_lights_held()
+        held = attrs.get("lights_held_until")
+        held_until = dt_util.parse_datetime(held) if isinstance(held, str) else None
+        if held_until is not None:
+            self._controller.restore_lights_held(held_until)
         # Contrôles manuels en cours : un redémarrage la nuit ne doit pas
         # rallumer la lumière éteinte au coucher. Ancien nom avant 0.10.0.
         until_wake = (
