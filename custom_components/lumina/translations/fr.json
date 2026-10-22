@@ -345,17 +345,17 @@
     },
     "select": {
       "lights_mode": {
-        "name": "Lumières à allumer",
+        "name": "Si une lumière est déjà allumée",
         "state": {
-          "all": "Toutes",
-          "any": "Seulement si aucune n'est allumée"
+          "all": "Allumer les autres",
+          "any": "Ne rien toucher"
         }
       },
       "fans_mode": {
-        "name": "Ventilateurs à allumer",
+        "name": "Si un ventilateur tourne déjà",
         "state": {
-          "all": "Tous",
-          "any": "Seulement si aucun n'est allumé"
+          "all": "Allumer les autres",
+          "any": "Ne rien toucher"
         }
       },
       "climate_vacant_day": {

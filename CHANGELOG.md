@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.3 — 2026-10-22
+
+- Réglages « Lumières à allumer » et « Ventilateurs à allumer » renommés « Si une lumière est déjà allumée » et « Si un ventilateur tourne déjà », avec les choix « Allumer les autres » ou « Ne rien toucher ». Le comportement ne change pas. Les pièces existantes gardent leur `entity_id` (`select.…_lumieres_a_allumer`, `select.…_ventilateurs_a_allumer`) ; les nouvelles reçoivent `select.…_si_une_lumiere_est_deja_allumee` et `select.…_si_un_ventilateur_tourne_deja`.
+
 ## 0.10.2 — 2026-10-21
 
 Pendant le sommeil, rien ne s'allume ni ne s'arrête sur un dormeur.

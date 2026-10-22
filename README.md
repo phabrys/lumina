@@ -84,7 +84,7 @@ Une clim gérée par Lumina ne peut pas servir de maintien de présence, sinon l
 - **Teinte** : 4000 K le jour, 2700 K la nuit, pour les lumières à blanc réglable (0 = ne pas modifier).
 - **Journal** : chaque décision apparaît dans le Journal avec sa raison, dans la langue de Home Assistant (français ou anglais), par exemple « allume les lumières à 30 % (nuit, 12 lx) ». Les ajustements de vitesse fréquents sont regroupés (une entrée toutes les 10 min au plus).
 - **Lumière du jour** : avec un seuil d'extinction réglé, les lumières s'éteignent quand le capteur mesure au moins cette valeur pendant 5 min. Règle-le **au-dessus** de ce que mesure le capteur lampes allumées, sinon la lampe s'éteindrait d'elle-même. Après une telle extinction, l'allumage automatique ne reprend qu'après 10 min sous le seuil d'allumage, ou quand la pièce se vide.
-- **Plusieurs lumières ou ventilateurs** : par défaut, Lumina allume toutes les lumières (ou tous les ventilateurs) éteints de la pièce ; l'option « Seulement si aucune n'est allumée » (« aucun » pour les ventilateurs) respecte un appareil déjà allumé.
+- **Plusieurs lumières ou ventilateurs** : par défaut, Lumina allume toutes les lumières (ou tous les ventilateurs) éteints de la pièce ; le réglage « Si une lumière est déjà allumée » (« Si un ventilateur tourne déjà ») passé à « Ne rien toucher » respecte un appareil déjà allumé.
 
 Les lumières et ventilateurs peuvent aussi être des prises (`switch`), par exemple un ventilateur branché sur une prise Zigbee.
 
@@ -114,8 +114,8 @@ Les lumières et ventilateurs peuvent aussi être des prises (`switch`), par exe
 | `number.…_avertissement_avant_extinction` | En secondes (défaut 15, 0 = extinction directe) |
 | `number.…_teinte_des_lumieres_jour` / `…_nuit` | En K (défaut 4000 / 2700, 0 = ne pas modifier) |
 | `number.…_extinction_a_la_lumiere_du_jour` | En lx (défaut 0 = désactivé) |
-| `select.…_lumieres_a_allumer` | Toutes / Seulement si aucune n'est allumée |
-| `select.…_ventilateurs_a_allumer` | Tous / Seulement si aucun n'est allumé |
+| `select.…_si_une_lumiere_est_deja_allumee` | Allumer les autres (défaut) / Ne rien toucher |
+| `select.…_si_un_ventilateur_tourne_deja` | Allumer les autres (défaut) / Ne rien toucher |
 | `switch.…_sommeil` | Met la pièce en sommeil jusqu'à la prochaine fin de nuit au plus tard |
 | `select.…_extinction_a_la_main_la_nuit` | Contrôle manuel / Sommeil jusqu'à ce que la pièce se vide (défaut) / Sommeil jusqu'au réveil, pièce présumée occupée |
 | `number.…_luminosite_en_sommeil_veilleuse` | En % (défaut 0 = pas d'allumage en sommeil) |
