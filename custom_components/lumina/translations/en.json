@@ -345,17 +345,17 @@
     },
     "select": {
       "lights_mode": {
-        "name": "Lights to turn on",
+        "name": "If a light is already on",
         "state": {
-          "all": "All",
-          "any": "Only if none is on"
+          "all": "Turn on the others",
+          "any": "Leave as is"
         }
       },
       "fans_mode": {
-        "name": "Fans to turn on",
+        "name": "If a fan is already running",
         "state": {
-          "all": "All",
-          "any": "Only if none is on"
+          "all": "Turn on the others",
+          "any": "Leave as is"
         }
       },
       "climate_vacant_day": {
