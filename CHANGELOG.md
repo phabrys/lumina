@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.4 — 2026-10-22
+
+- Réglage « Extinction à la main la nuit » : choix raccourcis en « Durée réglée », « Jusqu'au départ (sommeil) » et « Jusqu'au réveil (sommeil) », comme dans Lumina Card 0.3.6. Le comportement et les valeurs du select ne changent pas.
+
 ## 0.10.3 — 2026-10-22
 
 - Réglages « Lumières à allumer » et « Ventilateurs à allumer » renommés « Si une lumière est déjà allumée » et « Si un ventilateur tourne déjà », avec les choix « Allumer les autres » ou « Ne rien toucher ». Le comportement ne change pas. Les pièces existantes gardent leur `entity_id` (`select.…_lumieres_a_allumer`, `select.…_ventilateurs_a_allumer`) ; les nouvelles reçoivent `select.…_si_une_lumiere_est_deja_allumee` et `select.…_si_un_ventilateur_tourne_deja`.

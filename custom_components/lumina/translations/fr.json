@@ -318,9 +318,9 @@
           "bedtime_gesture": {
             "name": "Extinction à la main la nuit",
             "state": {
-              "override": "Contrôle manuel (durée réglée)",
-              "until_vacant": "Sommeil jusqu'à ce que la pièce se vide (salon)",
-              "until_wake": "Sommeil jusqu'au réveil, pièce présumée occupée (chambre)"
+              "override": "Durée réglée",
+              "until_vacant": "Jusqu'au départ (sommeil)",
+              "until_wake": "Jusqu'au réveil (sommeil)"
             }
           },
           "lights_held": {
@@ -387,9 +387,9 @@
       "bedtime_gesture": {
         "name": "Extinction à la main la nuit",
         "state": {
-          "override": "Contrôle manuel (durée réglée)",
-          "until_vacant": "Sommeil jusqu'à ce que la pièce se vide (salon)",
-          "until_wake": "Sommeil jusqu'au réveil, pièce présumée occupée (chambre)"
+          "override": "Durée réglée",
+          "until_vacant": "Jusqu'au départ (sommeil)",
+          "until_wake": "Jusqu'au réveil (sommeil)"
         }
       }
     },

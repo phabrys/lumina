@@ -318,9 +318,9 @@
           "bedtime_gesture": {
             "name": "Turning off by hand at night",
             "state": {
-              "override": "Manual control (set duration)",
-              "until_vacant": "Sleep until the room empties (living room)",
-              "until_wake": "Sleep until wake-up, room presumed occupied (bedroom)"
+              "override": "Set duration",
+              "until_vacant": "Until leaving (sleep)",
+              "until_wake": "Until waking (sleep)"
             }
           },
           "lights_held": {
@@ -387,9 +387,9 @@
       "bedtime_gesture": {
         "name": "Turning off by hand at night",
         "state": {
-          "override": "Manual control (set duration)",
-          "until_vacant": "Sleep until the room empties (living room)",
-          "until_wake": "Sleep until wake-up, room presumed occupied (bedroom)"
+          "override": "Set duration",
+          "until_vacant": "Until leaving (sleep)",
+          "until_wake": "Until waking (sleep)"
         }
       }
     },
