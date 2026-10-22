@@ -326,8 +326,8 @@
           "lights_held": {
             "name": "Lights kept off until the room empties"
           },
-          "lights_held_until": {
-            "name": "Lights kept off until"
+          "wake_hold_until": {
+            "name": "Waking up until"
           }
         }
       },

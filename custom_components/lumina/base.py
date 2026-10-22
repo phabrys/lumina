@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, time, timedelta
 import logging
 from typing import Any
 
@@ -22,6 +22,7 @@ from homeassistant.const import (
     STATE_UNKNOWN,
 )
 from homeassistant.core import CALLBACK_TYPE, Context, HomeAssistant, State, callback
+from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -30,6 +31,7 @@ from .const import (
     LOG_THROTTLE,
     MODE_ALL,
     PERIOD_NIGHT,
+    TIME_NIGHT_END,
 )
 from .messages import message
 
@@ -139,6 +141,7 @@ class RoomBase:
     period: str
     sleeping: bool
     settings: dict[str, float]
+    times: dict[str, time]
     groups: dict[str, ActuatorGroup]
     occupied: bool
     illuminance: str | None
@@ -164,8 +167,36 @@ class RoomBase:
         raise NotImplementedError
 
     @property
+    def occupied_or_presumed(self) -> bool:
+        """Pièce occupée, ou présumée occupée par un dormeur que le détecteur ne voit plus."""
+        raise NotImplementedError
+
+    def _refresh(self, reevaluate: bool) -> None:
+        if reevaluate:
+            self.async_reevaluate()
+        else:
+            self._notify()
+
+    @property
     def is_night(self) -> bool:
         return self.period == PERIOD_NIGHT
+
+    def _next_night_end(self) -> datetime:
+        """Prochaine occurrence de l'heure de fin de nuit (même sans plage de nuit)."""
+        now = dt_util.now()
+        end = self.times[TIME_NIGHT_END]
+        candidate = now.replace(
+            hour=end.hour, minute=end.minute, second=0, microsecond=0
+        )
+        if candidate <= now:
+            candidate += timedelta(days=1)
+        return dt_util.as_utc(candidate)
+
+    def _moved_night_end(self, until: datetime) -> datetime:
+        """Échéance `until` ramenée à la nouvelle heure de fin de nuit, même jour."""
+        end = self.times[TIME_NIGHT_END]
+        local = dt_util.as_local(until).replace(hour=end.hour, minute=end.minute)
+        return dt_util.as_utc(local)
 
     @property
     def night_rules(self) -> bool:
@@ -226,6 +257,27 @@ class RoomBase:
             elif value != wanted:
                 return False
         return True
+
+    # --- Contrôle manuel ---------------------------------------------------
+
+    def _arm_override(self, group: ActuatorGroup, until: datetime) -> None:
+        """Programme la fin de la reprise manuelle du groupe."""
+
+        @callback
+        def _end_override(_now: datetime) -> None:
+            group.override_timer = None
+            group.override_until = None
+            group.override_started = None
+            group.override_until_wake = False
+            group.override_turned_on = False
+            self._log(f"{group.kind}_override_end")
+            self.async_reevaluate()
+
+        group.override_until = until
+        group.override_timer = async_call_later(
+            self.hass, until - dt_util.utcnow(), _end_override
+        )
+        self._notify()
 
     # --- Commandes ---------------------------------------------------------
 

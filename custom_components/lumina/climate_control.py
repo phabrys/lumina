@@ -52,11 +52,6 @@ class ClimateControl(RoomBase):
     # Clim en pièce vide (jour / nuit)
     climate_actions: dict[str, str]
 
-    @property
-    def occupied_or_presumed(self) -> bool:
-        """Pièce occupée, ou présumée occupée par un dormeur que le détecteur ne voit plus."""
-        raise NotImplementedError
-
     def _init_climate(self, actions: dict[str, str]) -> None:
         self.climate_actions = actions
         # État des clims avant l'action en pièce vide, pour le rétablir au retour

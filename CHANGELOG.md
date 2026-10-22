@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.10.2 — 2026-10-21
+
+Pendant le sommeil, rien ne s'allume ni ne s'arrête sur un dormeur.
+
+- Sommeil : ni ventilateur ni clim ne s'arrêtent parce que la pièce semble vide, même quand le sommeil commence alors que le dormeur n'est déjà plus vu par le détecteur (téléphone mis en charge, switch Sommeil activé au lit). Avant, ils s'arrêtaient après le délai de nuit, et la clim pouvait être éteinte ou passée en eco.
+- Réveil de fin de nuit : pendant la durée du contrôle manuel (30 min), sauf geste sur la lumière, le dormeur reste présumé là : la lumière reste éteinte, et ventilateur et clim continuent au lieu de s'arrêter tout de suite. Une pièce qui semble vide ne lève plus ce répit : un dormeur vu à 7 h puis immobile 30 s rallumait la lumière à son mouvement suivant. Sans signe de vie au bout du délai, ventilateur et clim s'arrêtent aussitôt.
+- Redémarrage de Home Assistant à cheval sur la fin de nuit : le réveil est repris, la lumière ne s'allume plus sur le dormeur. Comme sans redémarrage, un sommeil deviné au salon n'a pas de répit.
+- Avertissement avant extinction pendant le sommeil : un mouvement rend aux lampes leur luminosité d'avant, mais une lampe dont la luminosité était inconnue reste baissée au lieu de passer à 100 %.
+- Capteur d'état : l'attribut `lights_held_until` (0.10.1) devient `wake_hold_until`.
+- Code : sommeil regroupé dans `sleep.py` (`start_sleep`, `wake`), règle « ne pas arrêter pendant le sommeil » en un seul endroit, raisons de réveil en constantes ; tests du sommeil dans `tests/test_sleep.py`, aides communes dans `tests/common.py`.
+
 ## 0.10.1 — 2026-10-21
 
 - Réveil de fin de nuit : la lumière reste aussi éteinte pour un dormeur que le détecteur ne voyait plus. Ce maintien dure au plus la durée du contrôle manuel (30 min), pour qui reviendrait dans une pièce vidée avant le réveil.
