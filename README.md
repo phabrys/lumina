@@ -56,9 +56,9 @@ La pièce passe en sommeil :
 - avec le switch **Sommeil**, à toute heure (sieste comprise) ;
 - avec une **entité de sommeil**, choisie dans **Configurer** (capteur de lit, téléphone en charge, `input_boolean`…) : active, la pièce s'endort ; inactive, elle se réveille. Choisis une entité stable : se lever quelques minutes ne doit pas la couper ;
 - la nuit, quand on éteint **toutes** les lumières à la main (les ventilateurs dans une pièce sans lumière), selon le réglage **Extinction à la main la nuit** :
-  - **Contrôle manuel** : pas de sommeil, la durée réglée s'applique ;
-  - **Sommeil jusqu'à ce que la pièce se vide** (par défaut, pour un salon) : on y revient éclairé après l'avoir quittée, mais un dormeur que le détecteur perd réveille aussi la pièce ;
-  - **Sommeil jusqu'au réveil, pièce présumée occupée** (pour une chambre) : le dormeur perdu par le détecteur ne rallume rien.
+  - **Durée réglée** : pas de sommeil, le contrôle manuel tient la durée réglée ;
+  - **Jusqu'au départ (sommeil)** : sommeil jusqu'à ce que la pièce se vide (par défaut, pour un salon) ; on y revient éclairé après l'avoir quittée, mais un dormeur que le détecteur perd réveille aussi la pièce ;
+  - **Jusqu'au réveil (sommeil)** : sommeil jusqu'au réveil, pièce présumée occupée (pour une chambre) ; le dormeur perdu par le détecteur ne rallume rien.
 
   Seul un geste compte (interrupteur, appli, voix) : une extinction par une automatisation ou un script, comme une scène « tout éteindre » en partant, n'endort pas la pièce. Pour un bouton « bonne nuit » qui passe par une automatisation, fais-lui activer le switch **Sommeil**.
 
