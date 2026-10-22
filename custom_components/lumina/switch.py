@@ -105,6 +105,7 @@ class LuminaSleepSwitch(LuminaEntity, SwitchEntity, RestoreEntity):
                 source=attrs.get("source") or SLEEP_MANUAL,
                 until=parsed,
                 presence_seen=bool(attrs.get("presence_seen")),
+                restored=True,
                 reevaluate=False,
             )
 

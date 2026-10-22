@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.1 — 2026-10-21
+
+- Réveil de fin de nuit : la lumière reste aussi éteinte pour un dormeur que le détecteur ne voyait plus. Ce maintien dure au plus la durée du contrôle manuel (30 min), pour qui reviendrait dans une pièce vidée avant le réveil.
+- Veilleuse : éteindre la lumière au coucher (à la main ou par un script) ne l'empêche plus de s'allumer pendant la nuit. Éteindre la veilleuse elle-même à la main la garde éteinte jusqu'au réveil.
+- Heure de fin de nuit avancée à une heure déjà passée : le sommeil et « Nuit maintenant » prennent fin tout de suite au lieu de durer jusqu'au lendemain.
+- Redémarrage pendant le sommeil : un appareil allumé à la main garde sa durée réglée au lieu de passer « jusqu'au réveil ».
+- Capteur d'état : nouvel attribut `lights_held_until`.
+
 ## 0.10.0 — 2026-10-21
 
 - Sommeil : nouvel état de la pièce, distinct de la nuit éveillée. Une pièce en sommeil n'allume pas les lumières (sauf veilleuse, nouveau réglage « Luminosité en sommeil », 0 % par défaut), garde les gestes manuels jusqu'au réveil et, dès que quelqu'un y a été détecté depuis le coucher, est présumée occupée : un dormeur que le détecteur ne voit plus n'arrête plus les ventilateurs ni la clim, et les ventilateurs suivent toujours la température.

@@ -44,7 +44,7 @@ Le switch **Nuit maintenant** force le mode nuit tout de suite ; il se désactiv
 
 La nuit, Lumina distingue une pièce où l'on est éveillé (aller boire un verre à 2 h : lumière faible et chaude, extinction rapide) d'une pièce où l'on dort. Une pièce en sommeil :
 
-- **n'allume pas les lumières**, sauf une veilleuse si la **Luminosité en sommeil** est réglée au-dessus de 0 % ;
+- **n'allume pas les lumières**, sauf une veilleuse si la **Luminosité en sommeil** est réglée au-dessus de 0 %. Éteindre la lumière au coucher ne bloque pas la veilleuse ; éteindre la veilleuse elle-même à la main la garde éteinte jusqu'au réveil ;
 - **garde les gestes manuels jusqu'au réveil** : la lumière éteinte au coucher ne se rallume pas, ni au bout de la durée réglée, ni quand un dormeur que le détecteur ne voyait plus bouge de nouveau. Un allumage à la main garde la durée réglée, pour qu'une lampe allumée dans une pièce vide ne reste pas allumée toute la nuit ;
 - **est présumée occupée** pour les ventilateurs et la clim, dès que quelqu'un y a été détecté depuis le coucher : un dormeur immobile que le détecteur ne voit plus ne les arrête pas, et les ventilateurs suivent toujours la température. Un sommeil lancé depuis une autre pièce ne démarre donc rien dans une chambre encore vide ;
 - utilise les réglages de nuit (teinte, seuil de température, action sur la clim).
@@ -62,7 +62,7 @@ La pièce passe en sommeil :
 
   Seul un geste compte (interrupteur, appli, voix) : une extinction par une automatisation ou un script, comme une scène « tout éteindre » en partant, n'endort pas la pièce. Pour un bouton « bonne nuit » qui passe par une automatisation, fais-lui activer le switch **Sommeil**.
 
-Elle se réveille quand on coupe le switch, quand l'entité de sommeil repasse à `off`, et **toujours à l'heure de fin de nuit**, pour qu'un sommeil oublié ne dure pas. Au réveil de fin de nuit, la lumière reste éteinte tant que la pièce ne s'est pas vidée (ou jusqu'à un geste) : le dormeur qui bouge à 7 h ne s'éclaire pas. Ce qui avait été réglé à la main avant le coucher tient aussi jusqu'au réveil. Changer l'heure de fin de nuit déplace le réveil. Le sommeil survit à un redémarrage de Home Assistant.
+Elle se réveille quand on coupe le switch, quand l'entité de sommeil repasse à `off`, et **toujours à l'heure de fin de nuit**, pour qu'un sommeil oublié ne dure pas. Au réveil de fin de nuit, la lumière reste éteinte tant que la pièce ne s'est pas vidée, jusqu'à un geste, et au plus la durée du contrôle manuel (30 min) : le dormeur qui bouge à 7 h ne s'éclaire pas, même si le détecteur ne le voyait plus. Ce qui avait été réglé à la main avant le coucher tient aussi jusqu'au réveil. Changer l'heure de fin de nuit déplace le réveil ; une heure déjà passée réveille la pièce tout de suite. Le sommeil survit à un redémarrage de Home Assistant.
 
 ### Clims
 
