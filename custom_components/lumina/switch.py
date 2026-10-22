@@ -100,8 +100,7 @@ class LuminaSleepSwitch(LuminaEntity, SwitchEntity, RestoreEntity):
             until = last_state.attributes.get("until")
             parsed = dt_util.parse_datetime(until) if isinstance(until, str) else None
             attrs = last_state.attributes
-            self._controller.set_sleeping(
-                True,
+            self._controller.start_sleep(
                 source=attrs.get("source") or SLEEP_MANUAL,
                 until=parsed,
                 presence_seen=bool(attrs.get("presence_seen")),
@@ -122,7 +121,7 @@ class LuminaSleepSwitch(LuminaEntity, SwitchEntity, RestoreEntity):
         }
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        self._controller.set_sleeping(True)
+        self._controller.start_sleep()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        self._controller.set_sleeping(False)
+        self._controller.wake()

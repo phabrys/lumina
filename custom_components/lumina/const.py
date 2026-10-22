@@ -141,6 +141,10 @@ PERIOD_NIGHT: Final = "night"
 SLEEP_MANUAL: Final = "manual"
 SLEEP_ENTITY: Final = "entity"
 SLEEP_LIGHTS_OFF: Final = "lights_off"
+# Réveil à l'heure de fin de nuit, ou pièce vidée (sommeil deviné au salon) ;
+# les autres réveils portent l'origine du sommeil (switch, entité)
+WAKE_MORNING: Final = "morning"
+WAKE_VACANT: Final = "vacant"
 
 # Lumières éteintes à la main la nuit : simple contrôle manuel, sommeil levé
 # quand la pièce se vide (salon), ou sommeil jusqu'au réveil avec la pièce
