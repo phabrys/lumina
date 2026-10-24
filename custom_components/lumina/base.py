@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 import logging
 from typing import Any
 
@@ -27,11 +27,12 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     CONFIRMATION_WINDOW,
+    DAY_WORK,
     DOMAIN,
     LOG_THROTTLE,
     MODE_ALL,
+    NIGHT_END_BY_DAY,
     PERIOD_NIGHT,
-    TIME_NIGHT_END,
 )
 from .messages import message
 
@@ -142,6 +143,8 @@ class RoomBase:
     sleeping: bool
     settings: dict[str, float]
     times: dict[str, time]
+    # Type des jours connus (semaine, repos, vacances) ; absent : semaine
+    day_kinds: dict[date, str]
     groups: dict[str, ActuatorGroup]
     occupied: bool
     illuminance: str | None
@@ -181,22 +184,26 @@ class RoomBase:
     def is_night(self) -> bool:
         return self.period == PERIOD_NIGHT
 
+    def night_end_on(self, day: date) -> time:
+        """Heure de fin de nuit le matin du jour `day`, selon son type."""
+        return self.times[NIGHT_END_BY_DAY[self.day_kinds.get(day, DAY_WORK)]]
+
     def _next_night_end(self) -> datetime:
-        """Prochaine occurrence de l'heure de fin de nuit (même sans plage de nuit)."""
+        """Prochaine fin de nuit, à l'heure du jour concerné (même sans plage de nuit)."""
         now = dt_util.now()
-        end = self.times[TIME_NIGHT_END]
-        candidate = now.replace(
-            hour=end.hour, minute=end.minute, second=0, microsecond=0
-        )
-        if candidate <= now:
-            candidate += timedelta(days=1)
+        for offset in (0, 1):
+            day = now + timedelta(days=offset)
+            end = self.night_end_on(day.date())
+            candidate = day.replace(hour=end.hour, minute=end.minute, second=0, microsecond=0)
+            if candidate > now:
+                break
         return dt_util.as_utc(candidate)
 
     def _moved_night_end(self, until: datetime) -> datetime:
         """Échéance `until` ramenée à la nouvelle heure de fin de nuit, même jour."""
-        end = self.times[TIME_NIGHT_END]
-        local = dt_util.as_local(until).replace(hour=end.hour, minute=end.minute)
-        return dt_util.as_utc(local)
+        local = dt_util.as_local(until)
+        end = self.night_end_on(local.date())
+        return dt_util.as_utc(local.replace(hour=end.hour, minute=end.minute))
 
     @property
     def night_rules(self) -> bool:

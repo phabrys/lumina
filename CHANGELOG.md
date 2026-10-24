@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.0 — 2026-10-24
+
+- Fin de nuit selon le jour : deux nouveaux champs facultatifs dans **Configurer**, **Jours travaillés** (capteur de l'intégration Workday) et **Calendriers de vacances**. Un jour de repos (week-end, férié), la nuit se termine à la nouvelle heure **Fin de la nuit (repos)** ; un jour où un calendrier de vacances a un événement, à la **Fin de la nuit (vacances)** ; les autres jours, à la **Fin de la nuit**. Le sommeil, la nuit forcée et la plage de nuit suivent l'heure du matin concerné. Chaque nouvelle heure n'existe que si sa source est choisie : sans elles, rien ne change.
+- Capteur d'état : nouveaux attributs `night_end_at` (prochaine fin de nuit), `night_end_day_kind` (`workday`, `day_off` ou `holidays`), `workday_entity` et `holiday_calendars`.
+
 ## 0.10.4 — 2026-10-22
 
 - Réglage « Extinction à la main la nuit » : choix raccourcis en « Durée réglée », « Jusqu'au départ (sommeil) » et « Jusqu'au réveil (sommeil) », comme dans Lumina Card 0.3.6. Le comportement et les valeurs du select ne changent pas.

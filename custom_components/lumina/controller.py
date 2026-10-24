@@ -55,6 +55,7 @@ from .const import (
     BEDTIME_UNTIL_VACANT,
     CONF_CLIMATES,
     CONF_FANS,
+    CONF_HOLIDAYS,
     CONF_HUMIDITY,
     CONF_ILLUMINANCE,
     CONF_LIGHTS,
@@ -62,6 +63,8 @@ from .const import (
     CONF_PRESENCE_HOLD,
     CONF_SLEEP,
     CONF_TEMPERATURE,
+    CONF_WORKDAY,
+    DAY_WORK,
     DEFAULT_CLIMATE_ACTIONS,
     DEFAULT_SETTINGS,
     DEFAULT_TIMES,
@@ -75,6 +78,7 @@ from .const import (
     KIND_FANS,
     KIND_LIGHTS,
     MODE_ALL,
+    NIGHT_END_TIMES,
     OVERRIDE_DEBOUNCE,
     PERIOD_DAY,
     PERIOD_NIGHT,
@@ -106,13 +110,13 @@ from .const import (
     SUN_BELOW_HORIZON,
     SUN_ENTITY,
     TEMP_HYSTERESIS,
-    TIME_NIGHT_END,
     TIME_NIGHT_START,
     WAKE_VACANT,
     WARNING_BRIGHTNESS,
     WARNING_MIN_BRIGHTNESS,
 )
 from .daylight import DaylightControl
+from .days import DayControl
 from .heat import apparent_temperature
 from .sleep import SleepControl
 
@@ -125,7 +129,7 @@ _OVERRIDE_ATTRIBUTES: dict[str, tuple[str, ...]] = {
 }
 
 
-class RoomController(SleepControl, ClimateControl, DaylightControl):
+class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
     """Pilote les lumières, ventilateurs et clims d'une pièce.
 
     Règles :
@@ -152,7 +156,9 @@ class RoomController(SleepControl, ClimateControl, DaylightControl):
       l'heure de fin de nuit au plus tard, et le réveil du matin laisse la
       lumière éteinte jusqu'à ce que la pièce se vide ;
     - capteur de luminosité muet → on se fie à la position du soleil ;
-    - la nuit (plage horaire ou forcée), réglages dédiés.
+    - la nuit (plage horaire ou forcée), réglages dédiés ; la fin de nuit
+      suit le type du jour (semaine, repos, vacances) quand ses sources sont
+      choisies.
     """
 
     def __init__(self, hass: HomeAssistant, name: str, config: Mapping[str, Any]) -> None:
@@ -187,6 +193,7 @@ class RoomController(SleepControl, ClimateControl, DaylightControl):
         self.forced_night = False
         self.forced_night_until: datetime | None = None
         self._init_sleep(config.get(CONF_SLEEP))
+        self._init_days(config.get(CONF_WORKDAY), list(config.get(CONF_HOLIDAYS) or []))
         self._init_climate(dict(DEFAULT_CLIMATE_ACTIONS))
         self._init_daylight()
         # Ventilateurs pendant que la clim tourne
@@ -218,6 +225,7 @@ class RoomController(SleepControl, ClimateControl, DaylightControl):
             *self.presence_hold,
             *self.environment_sensors,
             *([self.sleep_entity] if self.sleep_entity else []),
+            *self.day_sources,
             *(e for group in self.groups.values() for e in group.entity_ids),
         ]
 
@@ -247,6 +255,7 @@ class RoomController(SleepControl, ClimateControl, DaylightControl):
         self._track(self.environment_sensors, self._on_environment)
         if self.sleep_entity:
             self._track([self.sleep_entity], self._on_sleep_entity)
+        self._track(self.day_sources, self._on_day_source)
         for group in self.groups.values():
             self._track(group.entity_ids, self._make_actuator_handler(group))
         # Une occupation restaurée est gardée jusqu'au démarrage complet de
@@ -259,6 +268,7 @@ class RoomController(SleepControl, ClimateControl, DaylightControl):
             async_track_time_change(self.hass, self._on_minute, second=0)
         )
         self._unsubs.append(async_at_started(self.hass, self._on_started))
+        self._schedule_day_kinds()
 
     @callback
     def async_stop(self) -> None:
@@ -266,6 +276,7 @@ class RoomController(SleepControl, ClimateControl, DaylightControl):
         self._stopped = True
         while self._unsubs:
             self._unsubs.pop()()
+        self._cancel_day_kinds()
         for group in self.groups.values():
             group.cancel_off_timer()
             group.clear_override()
@@ -335,17 +346,25 @@ class RoomController(SleepControl, ClimateControl, DaylightControl):
     def update_time(self, key: str, value: time, *, reevaluate: bool = True) -> None:
         changed = self.times[key] != value
         self.times[key] = value
-        if changed and key == TIME_NIGHT_END:
-            # Nouvelle fin de nuit, le même jour que l'échéance en cours : déjà
-            # passée, la nuit forcée et le sommeil prennent fin tout de suite.
-            if self.forced_night and self.forced_night_until is not None:
-                until = self._moved_night_end(self.forced_night_until)
-                self.forced_night = until > dt_util.utcnow()
-                self.forced_night_until = until if self.forced_night else None
-            self._follow_night_end()
+        if changed and key in NIGHT_END_TIMES:
+            self._night_end_moved()
+        else:
+            self._natural_period = self._compute_natural_period()
+            self.period = self._effective_period()
+        self._refresh(reevaluate)
+
+    def _night_end_moved(self) -> None:
+        """Nouvelle fin de nuit, appliquée le jour de l'échéance en cours.
+
+        Déjà passée, la nuit forcée et le sommeil prennent fin tout de suite.
+        """
+        if self.forced_night and self.forced_night_until is not None:
+            until = self._moved_night_end(self.forced_night_until)
+            self.forced_night = until > dt_util.utcnow()
+            self.forced_night_until = until if self.forced_night else None
+        self._follow_night_end()
         self._natural_period = self._compute_natural_period()
         self.period = self._effective_period()
-        self._refresh(reevaluate)
 
     @callback
     def set_forced_night(
@@ -423,6 +442,7 @@ class RoomController(SleepControl, ClimateControl, DaylightControl):
         overrides_until_wake = [
             group.kind for group in self.groups.values() if group.override_until_wake
         ]
+        night_end_at = self._next_night_end()
         return {
             "period": self.period,
             "forced_night": self.forced_night,
@@ -433,6 +453,12 @@ class RoomController(SleepControl, ClimateControl, DaylightControl):
             "sleep_presence_seen": self._sleep_presence_seen,
             "presumed_occupied": self.presumed_occupied,
             "sleep_entity": self.sleep_entity,
+            "night_end_at": night_end_at,
+            "night_end_day_kind": self.day_kinds.get(
+                dt_util.as_local(night_end_at).date(), DAY_WORK
+            ),
+            "workday_entity": self.workday_entity,
+            "holiday_calendars": self.holiday_calendars,
             "bedtime_gesture": self.bedtime_gesture,
             "lights_held": self.lights_held,
             "wake_hold_until": self.wake_hold_until,
@@ -519,9 +545,10 @@ class RoomController(SleepControl, ClimateControl, DaylightControl):
 
     def _compute_natural_period(self) -> str:
         """Jour ou nuit selon la plage réglée (début = fin : pas de nuit)."""
+        local = dt_util.now()
         start = self.times[TIME_NIGHT_START]
-        end = self.times[TIME_NIGHT_END]
-        now = dt_util.now().time().replace(tzinfo=None)
+        end = self.night_end_on(local.date())
+        now = local.time().replace(tzinfo=None)
         if start == end:
             night = False
         elif start < end:
@@ -1031,7 +1058,7 @@ class RoomController(SleepControl, ClimateControl, DaylightControl):
             self._off_delay_credit = 0.0
 
     @callback
-    def _on_minute(self, _now: datetime) -> None:
+    def _on_minute(self, now: datetime) -> None:
         if (
             self.forced_night
             and self.forced_night_until is not None
@@ -1040,6 +1067,9 @@ class RoomController(SleepControl, ClimateControl, DaylightControl):
             # Heure de fin de nuit atteinte : le forçage s'arrête de lui-même.
             self.forced_night = False
             self.forced_night_until = None
+        if now.minute == 0:
+            # Chaque heure : un calendrier peut changer sans changer d'état.
+            self._schedule_day_kinds()
         woke = self._check_sleep_end()
         self._natural_period = self._compute_natural_period()
         period = self._effective_period()

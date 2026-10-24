@@ -20,7 +20,9 @@
           "temperature_sensor": "Capteur de température",
           "presence_hold": "Maintien de présence",
           "humidity_sensor": "Capteur d'humidité",
-          "sleep_entity": "Entité de sommeil"
+          "sleep_entity": "Entité de sommeil",
+          "workday_entity": "Jours travaillés",
+          "holiday_calendars": "Calendriers de vacances"
         },
         "data_description": {
           "presence_sensors": "La pièce est occupée dès qu'un de ces capteurs est actif.",
@@ -31,7 +33,9 @@
           "temperature_sensor": "Sans capteur, les ventilateurs suivent uniquement la présence.",
           "presence_hold": "TV, enceinte… : tant qu'une de ces entités est active, la pièce reste occupée même si les détecteurs ne voient plus personne.",
           "humidity_sensor": "Avec l'humidité, les ventilateurs suivent la température ressentie plutôt que la température mesurée.",
-          "sleep_entity": "Lit occupé, téléphone en charge, input_boolean… : active, la pièce passe en sommeil ; inactive, elle en sort. Choisis une entité stable : un lever de quelques minutes ne doit pas la couper."
+          "sleep_entity": "Lit occupé, téléphone en charge, input_boolean… : active, la pièce passe en sommeil ; inactive, elle en sort. Choisis une entité stable : un lever de quelques minutes ne doit pas la couper.",
+          "workday_entity": "Capteur de l'intégration Workday : un jour qu'il ne compte pas travaillé (week-end, férié), la nuit se termine à la « Fin de la nuit (repos) ».",
+          "holiday_calendars": "Calendriers réservés aux vacances (vacances scolaires, congés…) : un jour où l'un d'eux a un événement, la nuit se termine à la « Fin de la nuit (vacances) »."
         }
       }
     },
@@ -57,7 +61,9 @@
           "temperature_sensor": "Capteur de température",
           "presence_hold": "Maintien de présence",
           "humidity_sensor": "Capteur d'humidité",
-          "sleep_entity": "Entité de sommeil"
+          "sleep_entity": "Entité de sommeil",
+          "workday_entity": "Jours travaillés",
+          "holiday_calendars": "Calendriers de vacances"
         },
         "data_description": {
           "presence_sensors": "La pièce est occupée dès qu'un de ces capteurs est actif.",
@@ -68,7 +74,9 @@
           "temperature_sensor": "Sans capteur, les ventilateurs suivent uniquement la présence.",
           "presence_hold": "TV, enceinte… : tant qu'une de ces entités est active, la pièce reste occupée même si les détecteurs ne voient plus personne.",
           "humidity_sensor": "Avec l'humidité, les ventilateurs suivent la température ressentie plutôt que la température mesurée.",
-          "sleep_entity": "Lit occupé, téléphone en charge, input_boolean… : active, la pièce passe en sommeil ; inactive, elle en sort. Choisis une entité stable : un lever de quelques minutes ne doit pas la couper."
+          "sleep_entity": "Lit occupé, téléphone en charge, input_boolean… : active, la pièce passe en sommeil ; inactive, elle en sort. Choisis une entité stable : un lever de quelques minutes ne doit pas la couper.",
+          "workday_entity": "Capteur de l'intégration Workday : un jour qu'il ne compte pas travaillé (week-end, férié), la nuit se termine à la « Fin de la nuit (repos) ».",
+          "holiday_calendars": "Calendriers réservés aux vacances (vacances scolaires, congés…) : un jour où l'un d'eux a un événement, la nuit se termine à la « Fin de la nuit (vacances) »."
         }
       }
     },
@@ -328,6 +336,23 @@
           },
           "wake_hold_until": {
             "name": "Réveil en cours jusqu'à"
+          },
+          "night_end_at": {
+            "name": "Prochaine fin de nuit"
+          },
+          "night_end_day_kind": {
+            "name": "Type du jour de la prochaine fin de nuit",
+            "state": {
+              "workday": "Semaine",
+              "day_off": "Repos",
+              "holidays": "Vacances"
+            }
+          },
+          "workday_entity": {
+            "name": "Jours travaillés"
+          },
+          "holiday_calendars": {
+            "name": "Calendriers de vacances"
           }
         }
       },
@@ -341,6 +366,12 @@
       },
       "night_end": {
         "name": "Fin de la nuit"
+      },
+      "night_end_day_off": {
+        "name": "Fin de la nuit (repos)"
+      },
+      "night_end_holidays": {
+        "name": "Fin de la nuit (vacances)"
       }
     },
     "select": {

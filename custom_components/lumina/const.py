@@ -19,6 +19,10 @@ CONF_PRESENCE_HOLD: Final = "presence_hold"
 CONF_HUMIDITY: Final = "humidity_sensor"
 # Entité qui met la pièce en sommeil (lit, téléphone en charge, input_boolean…)
 CONF_SLEEP: Final = "sleep_entity"
+# Jours travaillés (intégration Workday) et calendriers de vacances : la fin
+# de nuit suit le type de chaque jour
+CONF_WORKDAY: Final = "workday_entity"
+CONF_HOLIDAYS: Final = "holiday_calendars"
 
 # États d'une entité de maintien de présence considérés comme inactifs
 HOLD_INACTIVE_STATES: Final = frozenset(
@@ -128,10 +132,28 @@ WARNING_MIN_BRIGHTNESS: Final = 3
 # Plage de nuit (entités time, restaurées au redémarrage)
 TIME_NIGHT_START: Final = "night_start"
 TIME_NIGHT_END: Final = "night_end"
+# Fin de nuit un jour de repos (week-end, férié) ou de vacances
+TIME_NIGHT_END_DAY_OFF: Final = "night_end_day_off"
+TIME_NIGHT_END_HOLIDAYS: Final = "night_end_holidays"
+NIGHT_END_TIMES: Final = frozenset(
+    {TIME_NIGHT_END, TIME_NIGHT_END_DAY_OFF, TIME_NIGHT_END_HOLIDAYS}
+)
 
 DEFAULT_TIMES: Final[dict[str, time]] = {
     TIME_NIGHT_START: time(22, 0),
     TIME_NIGHT_END: time(7, 0),
+    TIME_NIGHT_END_DAY_OFF: time(8, 0),
+    TIME_NIGHT_END_HOLIDAYS: time(8, 0),
+}
+
+# Type d'un jour, qui choisit son heure de fin de nuit
+DAY_WORK: Final = "workday"
+DAY_OFF: Final = "day_off"
+DAY_HOLIDAYS: Final = "holidays"
+NIGHT_END_BY_DAY: Final[dict[str, str]] = {
+    DAY_WORK: TIME_NIGHT_END,
+    DAY_OFF: TIME_NIGHT_END_DAY_OFF,
+    DAY_HOLIDAYS: TIME_NIGHT_END_HOLIDAYS,
 }
 
 PERIOD_DAY: Final = "day"
