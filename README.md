@@ -40,6 +40,15 @@ Mettre la même heure en début et en fin de nuit désactive le mode nuit pour l
 
 Le switch **Nuit maintenant** force le mode nuit tout de suite ; il se désactive seul à la prochaine heure de fin de nuit, même si la pièce n'a pas de plage de nuit.
 
+#### Fin de nuit selon le jour
+
+La nuit peut se terminer plus tard le week-end et pendant les vacances. Dans **Configurer**, choisis :
+
+- **Jours travaillés** : un capteur de l'intégration [Workday](https://www.home-assistant.io/integrations/workday/) (pays, région, jours de repos). Un jour qu'il ne compte pas travaillé (week-end, férié), la nuit se termine à la **Fin de la nuit (repos)** ;
+- **Calendriers de vacances** : un ou plusieurs calendriers réservés aux vacances. Un jour où l'un d'eux a un événement, la nuit se termine à la **Fin de la nuit (vacances)**, même un jour de repos. Pour les vacances scolaires, l'intégration **Remote Calendar** peut s'abonner au calendrier officiel de ta zone ou de ton académie, publié en ICS par le ministère (`https://fr.ftp.opendatasoft.com/openscol/fr-en-calendrier-scolaire/<Zone>.ics`, par exemple `Zone-A.ics` ou `Guyane.ics`), qui se met à jour seul chaque année.
+
+Les autres jours, la nuit se termine à la **Fin de la nuit**. Chaque heure n'apparaît que si sa source est choisie. Le type de chaque matin vaut pour le sommeil, la nuit forcée et la plage de nuit : un matin de vacances, la nuit dure jusqu'à l'heure des vacances. Lumina relit le type d'aujourd'hui et de demain chaque heure et dès que Workday ou un calendrier change ; si Workday ne répond pas, le samedi et le dimanche comptent comme jours de repos. L'attribut `night_end_at` du capteur d'état donne la prochaine fin de nuit, et `night_end_day_kind` son type (`workday`, `day_off`, `holidays`).
+
 ### Sommeil
 
 La nuit, Lumina distingue une pièce où l'on est éveillé (aller boire un verre à 2 h : lumière faible et chaude, extinction rapide) d'une pièce où l'on dort. Une pièce en sommeil :
@@ -103,6 +112,7 @@ Les lumières et ventilateurs peuvent aussi être des prises (`switch`), par exe
 | `number.…_confirmation_d_absence` | En secondes (défaut 30, 0 = immédiat) |
 | `number.…_luminosite_des_lumieres_jour` | En % (défaut 100) |
 | `time.…_debut_de_la_nuit` / `time.…_fin_de_la_nuit` | Plage de nuit (défaut 22:00 → 07:00) |
+| `time.…_fin_de_la_nuit_repos` / `time.…_fin_de_la_nuit_vacances` | Fin de nuit un jour de repos ou de vacances (défaut 08:00), avec Workday ou un calendrier de vacances |
 | `number.…_luminosite_des_lumieres_nuit` | En % (défaut 30, 0 = pas d'allumage la nuit) |
 | `number.…_delai_d_extinction_des_lumieres_nuit` | En secondes (défaut 60) |
 | `number.…_delai_d_arret_des_ventilateurs_nuit` | En secondes (défaut 1800) |
@@ -146,7 +156,7 @@ type: custom:lumina-card
 device: 0123456789abcdef0123456789abcdef   # appareil Lumina de la pièce
 ```
 
-La carte lit les attributs du capteur d'état (entités de la pièce, échéances `lights_off_at`, `fans_off_at`, `climate_vacant_at`…). Elle fonctionne avec Lumina 0.6.0 et plus ; la clim et ses réglages y apparaissent avec Lumina 0.8.0 et Lumina Card 0.2.0.
+La carte lit les attributs du capteur d'état (entités de la pièce, échéances `lights_off_at`, `fans_off_at`, `climate_vacant_at`…). Elle fonctionne avec Lumina 0.6.0 et plus ; la clim et ses réglages y apparaissent avec Lumina 0.8.0 et Lumina Card 0.2.0, les fins de nuit des jours de repos et de vacances avec Lumina 0.11.0 et Lumina Card 0.4.0.
 
 ## Installation
 

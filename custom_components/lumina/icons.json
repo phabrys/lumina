@@ -113,6 +113,12 @@
       },
       "night_end": {
         "default": "mdi:weather-sunset-up"
+      },
+      "night_end_day_off": {
+        "default": "mdi:calendar-weekend"
+      },
+      "night_end_holidays": {
+        "default": "mdi:beach"
       }
     },
     "select": {

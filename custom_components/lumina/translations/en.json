@@ -20,7 +20,9 @@
           "temperature_sensor": "Temperature sensor",
           "presence_hold": "Presence hold",
           "humidity_sensor": "Humidity sensor",
-          "sleep_entity": "Sleep entity"
+          "sleep_entity": "Sleep entity",
+          "workday_entity": "Workdays",
+          "holiday_calendars": "Holiday calendars"
         },
         "data_description": {
           "presence_sensors": "The room is occupied as soon as one of these sensors is on.",
@@ -31,7 +33,9 @@
           "temperature_sensor": "Without a sensor, fans follow presence only.",
           "presence_hold": "TV, speaker…: while one of these entities is active, the room stays occupied even if the sensors no longer detect anyone.",
           "humidity_sensor": "With humidity, fans follow the apparent (feels-like) temperature instead of the measured one.",
-          "sleep_entity": "Bed occupied, phone charging, input_boolean…: on puts the room to sleep, off wakes it. Pick a stable entity: getting up for a few minutes should not turn it off."
+          "sleep_entity": "Bed occupied, phone charging, input_boolean…: on puts the room to sleep, off wakes it. Pick a stable entity: getting up for a few minutes should not turn it off.",
+          "workday_entity": "Workday integration sensor: on a day it does not count as a workday (weekend, public holiday), the night ends at “Night ends (day off)”.",
+          "holiday_calendars": "Calendars used only for holidays (school holidays, leave…): on a day one of them has an event, the night ends at “Night ends (holidays)”."
         }
       }
     },
@@ -57,7 +61,9 @@
           "temperature_sensor": "Temperature sensor",
           "presence_hold": "Presence hold",
           "humidity_sensor": "Humidity sensor",
-          "sleep_entity": "Sleep entity"
+          "sleep_entity": "Sleep entity",
+          "workday_entity": "Workdays",
+          "holiday_calendars": "Holiday calendars"
         },
         "data_description": {
           "presence_sensors": "The room is occupied as soon as one of these sensors is on.",
@@ -68,7 +74,9 @@
           "temperature_sensor": "Without a sensor, fans follow presence only.",
           "presence_hold": "TV, speaker…: while one of these entities is active, the room stays occupied even if the sensors no longer detect anyone.",
           "humidity_sensor": "With humidity, fans follow the apparent (feels-like) temperature instead of the measured one.",
-          "sleep_entity": "Bed occupied, phone charging, input_boolean…: on puts the room to sleep, off wakes it. Pick a stable entity: getting up for a few minutes should not turn it off."
+          "sleep_entity": "Bed occupied, phone charging, input_boolean…: on puts the room to sleep, off wakes it. Pick a stable entity: getting up for a few minutes should not turn it off.",
+          "workday_entity": "Workday integration sensor: on a day it does not count as a workday (weekend, public holiday), the night ends at “Night ends (day off)”.",
+          "holiday_calendars": "Calendars used only for holidays (school holidays, leave…): on a day one of them has an event, the night ends at “Night ends (holidays)”."
         }
       }
     },
@@ -328,6 +336,23 @@
           },
           "wake_hold_until": {
             "name": "Waking up until"
+          },
+          "night_end_at": {
+            "name": "Next night end"
+          },
+          "night_end_day_kind": {
+            "name": "Day type of the next night end",
+            "state": {
+              "workday": "Workday",
+              "day_off": "Day off",
+              "holidays": "Holidays"
+            }
+          },
+          "workday_entity": {
+            "name": "Workdays"
+          },
+          "holiday_calendars": {
+            "name": "Holiday calendars"
           }
         }
       },
@@ -341,6 +366,12 @@
       },
       "night_end": {
         "name": "Night end"
+      },
+      "night_end_day_off": {
+        "name": "Night ends (day off)"
+      },
+      "night_end_holidays": {
+        "name": "Night ends (holidays)"
       }
     },
     "select": {

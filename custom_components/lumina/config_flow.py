@@ -24,6 +24,7 @@ from .const import (
     CONF_AREA,
     CONF_CLIMATES,
     CONF_FANS,
+    CONF_HOLIDAYS,
     CONF_HUMIDITY,
     CONF_ILLUMINANCE,
     CONF_LIGHTS,
@@ -31,6 +32,7 @@ from .const import (
     CONF_PRESENCE_HOLD,
     CONF_SLEEP,
     CONF_TEMPERATURE,
+    CONF_WORKDAY,
     DOMAIN,
 )
 
@@ -171,6 +173,16 @@ def _entities_schema(defaults: dict[str, Any]) -> vol.Schema:
             ),
             vol.Optional(CONF_SLEEP, description=suggested(CONF_SLEEP)): (
                 selector.EntitySelector(selector.EntitySelectorConfig(domain=SLEEP_DOMAINS))
+            ),
+            vol.Optional(CONF_WORKDAY, description=suggested(CONF_WORKDAY)): (
+                selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="binary_sensor", integration="workday")
+                )
+            ),
+            vol.Optional(CONF_HOLIDAYS, description=suggested(CONF_HOLIDAYS)): (
+                selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="calendar", multiple=True)
+                )
             ),
         }
     )
