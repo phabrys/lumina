@@ -18,6 +18,7 @@
           "fans": "Fans",
           "climates": "Air conditioners",
           "temperature_sensor": "Temperature sensor",
+          "presence_still_sensors": "Sensors that see still people",
           "presence_hold": "Presence hold",
           "humidity_sensor": "Humidity sensor",
           "sleep_entity": "Sleep entity",
@@ -31,6 +32,7 @@
           "fans": "Turned on on arrival when the temperature exceeds the threshold.",
           "climates": "Lumina never turns them on. Empty room: off, eco or a raised setpoint as configured, then back to the previous state when someone returns.",
           "temperature_sensor": "Without a sensor, fans follow presence only.",
+          "presence_still_sensors": "Radar (mmWave: Aqara FP2…) among the presence sensors. While one of them responds, a room it sees empty really is empty: Lumina no longer presumes a hidden sleeper, and the sleep entity only puts the room to sleep if it sees someone. Leave empty for a plain PIR.",
           "presence_hold": "TV, speaker…: while one of these entities is active, the room stays occupied even if the sensors no longer detect anyone.",
           "humidity_sensor": "With humidity, fans follow the apparent (feels-like) temperature instead of the measured one.",
           "sleep_entity": "Bed occupied, phone charging, input_boolean…: on puts the room to sleep, off wakes it. Pick a stable entity: getting up for a few minutes should not turn it off.",
@@ -42,7 +44,8 @@
     "error": {
       "no_presence": "Select at least one presence sensor.",
       "no_actuator": "Select at least one light, fan or air conditioner.",
-      "climate_in_hold": "An air conditioner managed by Lumina cannot also hold presence: the room would never become empty."
+      "climate_in_hold": "An air conditioner managed by Lumina cannot also hold presence: the room would never become empty.",
+      "still_not_presence": "These sensors must also be among the presence sensors."
     },
     "abort": {
       "already_configured": "This room is already managed by Lumina."
@@ -59,6 +62,7 @@
           "fans": "Fans",
           "climates": "Air conditioners",
           "temperature_sensor": "Temperature sensor",
+          "presence_still_sensors": "Sensors that see still people",
           "presence_hold": "Presence hold",
           "humidity_sensor": "Humidity sensor",
           "sleep_entity": "Sleep entity",
@@ -72,6 +76,7 @@
           "fans": "Turned on on arrival when the temperature exceeds the threshold.",
           "climates": "Lumina never turns them on. Empty room: off, eco or a raised setpoint as configured, then back to the previous state when someone returns.",
           "temperature_sensor": "Without a sensor, fans follow presence only.",
+          "presence_still_sensors": "Radar (mmWave: Aqara FP2…) among the presence sensors. While one of them responds, a room it sees empty really is empty: Lumina no longer presumes a hidden sleeper, and the sleep entity only puts the room to sleep if it sees someone. Leave empty for a plain PIR.",
           "presence_hold": "TV, speaker…: while one of these entities is active, the room stays occupied even if the sensors no longer detect anyone.",
           "humidity_sensor": "With humidity, fans follow the apparent (feels-like) temperature instead of the measured one.",
           "sleep_entity": "Bed occupied, phone charging, input_boolean…: on puts the room to sleep, off wakes it. Pick a stable entity: getting up for a few minutes should not turn it off.",
@@ -83,7 +88,8 @@
     "error": {
       "no_presence": "Select at least one presence sensor.",
       "no_actuator": "Select at least one light, fan or air conditioner.",
-      "climate_in_hold": "An air conditioner managed by Lumina cannot also hold presence: the room would never become empty."
+      "climate_in_hold": "An air conditioner managed by Lumina cannot also hold presence: the room would never become empty.",
+      "still_not_presence": "These sensors must also be among the presence sensors."
     }
   },
   "entity": {
@@ -258,6 +264,15 @@
           "presence_sensors": {
             "name": "Presence sensors"
           },
+          "presence_still_sensors": {
+            "name": "Sensors that see still people"
+          },
+          "presence_unavailable": {
+            "name": "Unavailable sensors"
+          },
+          "presence_unknown": {
+            "name": "Presence unknown"
+          },
           "presence_hold_entities": {
             "name": "Presence hold"
           },
@@ -428,6 +443,12 @@
       "resume": {
         "name": "Resume automation"
       }
+    }
+  },
+  "issues": {
+    "presence_unavailable": {
+      "title": "{room}: presence sensor unavailable",
+      "description": "Lumina has received nothing from {sensors} for more than an hour. Check the batteries or the device's connection. While no sensor in the room responds, Lumina no longer turns anything off because the room looks empty."
     }
   }
 }

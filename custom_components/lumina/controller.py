@@ -35,6 +35,7 @@ from homeassistant.core import (
     HomeAssistant,
     callback,
 )
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import (
     async_call_later,
     async_track_state_change_event,
@@ -61,6 +62,7 @@ from .const import (
     CONF_LIGHTS,
     CONF_PRESENCE,
     CONF_PRESENCE_HOLD,
+    CONF_PRESENCE_STILL,
     CONF_SLEEP,
     CONF_TEMPERATURE,
     CONF_WORKDAY,
@@ -68,12 +70,14 @@ from .const import (
     DEFAULT_CLIMATE_ACTIONS,
     DEFAULT_SETTINGS,
     DEFAULT_TIMES,
+    DOMAIN,
     FAN_MIN_CYCLE,
     FAN_SPEED_MIN_CHANGE,
     FANS_WITH_CLIMATE_MIX,
     FANS_WITH_CLIMATE_NORMAL,
     FANS_WITH_CLIMATE_OFF,
     HOLD_INACTIVE_STATES,
+    ISSUE_PRESENCE_UNAVAILABLE,
     KIND_CLIMATE,
     KIND_FANS,
     KIND_LIGHTS,
@@ -82,6 +86,7 @@ from .const import (
     OVERRIDE_DEBOUNCE,
     PERIOD_DAY,
     PERIOD_NIGHT,
+    PRESENCE_ISSUE_DELAY,
     ROOM_OCCUPIED,
     ROOM_OVERRIDE,
     ROOM_SLEEPING,
@@ -107,6 +112,7 @@ from .const import (
     SETTING_VACANCY_CONFIRM,
     SLEEP_ENTITY,
     SLEEP_LIGHTS_OFF,
+    SLEEP_RECENT_PRESENCE,
     SUN_BELOW_HORIZON,
     SUN_ENTITY,
     TEMP_HYSTERESIS,
@@ -145,25 +151,39 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
     - action manuelle sur un actionneur → reprise manuelle du groupe
       pendant une durée réglable, levée aussi quand la pièce se vide ;
     - ventilateurs : pas de marche/arrêt plus rapprochés que FAN_MIN_CYCLE ;
-    - détecteur indisponible → l'occupation en cours est conservée ;
+    - détecteur indisponible → l'occupation en cours est conservée ; tous
+      muets → rien ne s'éteint, et la panne est signalée dans les Réparations ;
     - clims : jamais allumées par Lumina ; pièce vide → action réglable
       (arrêt, eco, consigne relevée), annulée au retour dans la pièce ;
     - clim en marche → ventilateurs normaux, en brassage ou arrêtés ;
     - sommeil (switch, entité choisie, ou lumières éteintes à la main la
       nuit) : pas d'allumage automatique sauf veilleuse, gestes manuels
       tenus jusqu'au réveil ; une fois quelqu'un détecté, la pièce est
-      présumée occupée pour les ventilateurs et la clim ; il prend fin à
-      l'heure de fin de nuit au plus tard, et le réveil du matin laisse la
-      lumière éteinte jusqu'à ce que la pièce se vide ;
+      présumée occupée pour les ventilateurs et la clim, sauf détecteur qui
+      voit l'immobilité ; il prend fin à l'heure de fin de nuit au plus tard,
+      et le réveil (matin ou entité) laisse la lumière éteinte un moment ;
     - capteur de luminosité muet → on se fie à la position du soleil ;
     - la nuit (plage horaire ou forcée), réglages dédiés ; la fin de nuit
       suit le type du jour (semaine, repos, vacances) quand ses sources sont
       choisies.
     """
 
-    def __init__(self, hass: HomeAssistant, name: str, config: Mapping[str, Any]) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        name: str,
+        config: Mapping[str, Any],
+        entry_id: str | None = None,
+    ) -> None:
         super().__init__(hass, name)
         self.presence: list[str] = list(config.get(CONF_PRESENCE, []))
+        self.presence_still: list[str] = [
+            e for e in config.get(CONF_PRESENCE_STILL) or [] if e in self.presence
+        ]
+        # Panne de détecteur signalée dans les Réparations, propre à la pièce
+        self._issue_id = f"{ISSUE_PRESENCE_UNAVAILABLE}_{entry_id or name}"
+        self._issue_timer: CALLBACK_TYPE | None = None
+        self._issue_raised = False
         self.presence_hold: list[str] = list(config.get(CONF_PRESENCE_HOLD, []))
         self.illuminance: str | None = config.get(CONF_ILLUMINANCE)
         self.temperature: str | None = config.get(CONF_TEMPERATURE)
@@ -269,6 +289,7 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
         )
         self._unsubs.append(async_at_started(self.hass, self._on_started))
         self._schedule_day_kinds()
+        self._check_presence_health()
 
     @callback
     def async_stop(self) -> None:
@@ -284,6 +305,8 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
         self._reset_daylight()
         self._cancel_vacancy()
         self._release_wake_hold()
+        cancel_timer(self._issue_timer)
+        self._issue_timer = None
 
     def _track(
         self,
@@ -489,6 +512,10 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
             "fans_with_climate": self.fans_with_climate,
             # Entités de la pièce, pour les cartes et les tableaux de bord
             "presence_sensors": self.presence,
+            "presence_still_sensors": self.presence_still,
+            # Détecteurs muets ; tous muets, Lumina ne sait plus si la pièce est vide
+            "presence_unavailable": self._dead_presence(),
+            "presence_unknown": self._presence_unknown(),
             "presence_hold_entities": self.presence_hold,
             "illuminance_sensor": self.illuminance,
             "temperature_sensor": self.temperature,
@@ -524,6 +551,8 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
             self._evaluate_lights()
             self._evaluate_fans()
             self._evaluate_climate()
+        elif self._presence_unknown():
+            pass  # détecteurs muets : rien ne dit que la pièce est vide
         else:
             if self.presumed_occupied:
                 # Dormeur que le détecteur ne voit plus : les ventilateurs
@@ -565,6 +594,71 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
             return True
         # Le maintien prolonge une occupation, il ne la déclenche pas.
         return self.occupied and self._hold_active()
+
+    def _dead_presence(self) -> list[str]:
+        """Détecteurs de présence sans état exploitable."""
+        return [
+            entity_id
+            for entity_id in self.presence
+            if (state := self.hass.states.get(entity_id)) is None
+            or state.state in INVALID_STATES
+        ]
+
+    def _still_watch(self) -> bool:
+        """Un détecteur qui voit les personnes immobiles répond-il ?"""
+        dead = self._dead_presence()
+        return any(entity_id not in dead for entity_id in self.presence_still)
+
+    def _presence_for_sleep(self) -> bool:
+        """Quelqu'un est-il dans la pièce, pour une entité de sommeil qui s'active ?
+
+        Un détecteur qui voit l'immobilité doit le voir maintenant ; à défaut
+        (PIR), une présence récente suffit, le dormeur a pu cesser de bouger.
+        Sans détecteur exploitable, l'entité est crue.
+        """
+        if self.occupied or not self.presence or self._presence_unknown():
+            return True
+        if self._still_watch():
+            return False
+        return (
+            self._vacant_since is None
+            or self.hass.loop.time() - self._vacant_since <= SLEEP_RECENT_PRESENCE
+        )
+
+    def _check_presence_health(self) -> None:
+        """Signale dans les Réparations un détecteur muet depuis une heure."""
+        if not self._dead_presence():
+            cancel_timer(self._issue_timer)
+            self._issue_timer = None
+            if self._issue_raised:
+                ir.async_delete_issue(self.hass, DOMAIN, self._issue_id)
+                self._issue_raised = False
+            return
+        if self._issue_raised or self._issue_timer is not None:
+            return
+
+        @callback
+        def _raise(_now: datetime) -> None:
+            self._issue_timer = None
+            dead = self._dead_presence()
+            if not dead:
+                return
+            names = []
+            for entity_id in dead:
+                state = self.hass.states.get(entity_id)
+                names.append(state.name if state is not None else entity_id)
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                self._issue_id,
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key=ISSUE_PRESENCE_UNAVAILABLE,
+                translation_placeholders={"room": self.name, "sensors": ", ".join(names)},
+            )
+            self._issue_raised = True
+
+        self._issue_timer = async_call_later(self.hass, PRESENCE_ISSUE_DELAY, _raise)
 
     def _presence_unknown(self) -> bool:
         """Les détecteurs existent mais aucun ne donne d'état exploitable."""
@@ -882,6 +976,7 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
             if (
                 self.occupied
                 or self._keeps_running(group)
+                or self._presence_unknown()
                 or not group.active
                 or not self._any_on(group)
             ):
@@ -934,7 +1029,12 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
             group.off_at = None
             group.warning = False
             group.saved_brightness = {}
-            if not self.occupied and group.active and self._any_on(group):
+            if (
+                not self.occupied
+                and not self._presence_unknown()
+                and group.active
+                and self._any_on(group)
+            ):
                 self._turn_off(group)
             self._notify()
 
@@ -965,6 +1065,8 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
     @callback
     def _on_presence(self, event: Event[EventStateChangedData]) -> None:
         new_state = event.data["new_state"]
+        if event.data["entity_id"] in self.presence:
+            self._check_presence_health()
         if event.data["entity_id"] in self.presence and (
             new_state is None or new_state.state in INVALID_STATES
         ):
@@ -1011,7 +1113,10 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
     def _confirm_vacancy(self, _now: datetime) -> None:
         self._vacancy_timer = None
         self._vacancy_at = None
-        if self._compute_occupied():
+        if self._compute_occupied() or self._presence_unknown():
+            # Détecteurs devenus muets pendant la confirmation : rien ne dit
+            # que la pièce est vide, l'occupation est conservée.
+            self._presence_lost_at = None
             self._notify()
             return
         self._set_vacant()
@@ -1033,6 +1138,9 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
         ):
             # Lumières éteintes en quittant le salon : on y revient éclairé.
             self.wake(reason=WAKE_VACANT, reevaluate=False)
+        if self._still_watch():
+            # Le détecteur verrait un dormeur : le réveil est terminé.
+            self._release_wake_hold()
         for group in self.groups.values():
             # Réglage du coucher (tout éteint) : un dormeur que le détecteur ne
             # voit plus ne le lève pas, sinon tout se rallumerait à son prochain
@@ -1059,6 +1167,25 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
 
     @callback
     def _on_minute(self, now: datetime) -> None:
+        if now.minute == 0:
+            # Chaque heure : un calendrier peut changer sans changer d'état.
+            self._schedule_day_kinds()
+        self._follow_clock()
+
+    def _wake_if_due(self) -> bool:
+        """Fin de nuit atteinte : réveil d'abord, avant toute réévaluation.
+
+        Les gestes tenus jusqu'au réveil arrivent à échéance à la seconde de
+        la fin de nuit : levés juste avant le réveil, ils laisseraient Lumina
+        réappliquer le sommeil (ventilateur éteint à la main rallumé).
+        """
+        if self.sleeping_until is None or dt_util.utcnow() < self.sleeping_until:
+            return False
+        self._follow_clock()
+        return True
+
+    def _follow_clock(self) -> None:
+        """Fin de la nuit forcée, réveil et période à l'heure qu'il est."""
         if (
             self.forced_night
             and self.forced_night_until is not None
@@ -1067,9 +1194,6 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
             # Heure de fin de nuit atteinte : le forçage s'arrête de lui-même.
             self.forced_night = False
             self.forced_night_until = None
-        if now.minute == 0:
-            # Chaque heure : un calendrier peut changer sans changer d'état.
-            self._schedule_day_kinds()
         woke = self._check_sleep_end()
         self._natural_period = self._compute_natural_period()
         period = self._effective_period()

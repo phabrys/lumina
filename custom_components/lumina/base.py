@@ -273,6 +273,8 @@ class RoomBase:
         @callback
         def _end_override(_now: datetime) -> None:
             group.override_timer = None
+            if group.override_until_wake and self._wake_if_due():
+                return  # le réveil a levé ce geste avec les autres
             group.override_until = None
             group.override_started = None
             group.override_until_wake = False
@@ -285,6 +287,10 @@ class RoomBase:
             self.hass, until - dt_util.utcnow(), _end_override
         )
         self._notify()
+
+    def _wake_if_due(self) -> bool:
+        """Fin de nuit atteinte : réveil fait, avant toute réévaluation."""
+        return False
 
     # --- Commandes ---------------------------------------------------------
 

@@ -30,6 +30,7 @@ from .const import (
     CONF_LIGHTS,
     CONF_PRESENCE,
     CONF_PRESENCE_HOLD,
+    CONF_PRESENCE_STILL,
     CONF_SLEEP,
     CONF_TEMPERATURE,
     CONF_WORKDAY,
@@ -126,6 +127,19 @@ def _entities_schema(defaults: dict[str, Any]) -> vol.Schema:
                     )
                 )
             ),
+            vol.Optional(CONF_PRESENCE_STILL, description=suggested(CONF_PRESENCE_STILL)): (
+                selector.EntitySelector(
+                    selector.EntitySelectorConfig(
+                        filter=[
+                            selector.EntityFilterSelectorConfig(
+                                domain="binary_sensor",
+                                device_class=PRESENCE_DEVICE_CLASSES,
+                            )
+                        ],
+                        multiple=True,
+                    )
+                )
+            ),
             vol.Optional(CONF_PRESENCE_HOLD, description=suggested(CONF_PRESENCE_HOLD)): (
                 selector.EntitySelector(
                     selector.EntitySelectorConfig(domain=HOLD_DOMAINS, multiple=True)
@@ -192,6 +206,8 @@ def _validate(user_input: dict[str, Any]) -> dict[str, str]:
     errors: dict[str, str] = {}
     if not user_input.get(CONF_PRESENCE):
         errors[CONF_PRESENCE] = "no_presence"
+    elif not set(user_input.get(CONF_PRESENCE_STILL) or []) <= set(user_input[CONF_PRESENCE]):
+        errors[CONF_PRESENCE_STILL] = "still_not_presence"
     if not any(user_input.get(key) for key in (CONF_LIGHTS, CONF_FANS, CONF_CLIMATES)):
         errors["base"] = "no_actuator"
     # Une clim gérée ne peut pas maintenir la présence : la pièce ne se

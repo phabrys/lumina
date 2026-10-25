@@ -36,6 +36,7 @@ from custom_components.lumina.const import (
     CONF_CLIMATES,
     CONF_FANS,
     CONF_LIGHTS,
+    CONF_PRESENCE_STILL,
     CONF_SLEEP,
     CONF_TEMPERATURE,
     DOMAIN,
@@ -402,8 +403,14 @@ async def test_sleep_entity(hass: HomeAssistant) -> None:
 
     hass.states.async_set(BED, "off")
     await hass.async_block_till_done()
-    assert _room(hass, entry).attributes["sleeping"] is False
-    assert _entities(turn_on) == [[LIGHT]]  # réveil par l'entité : allumage immédiat
+    room = _room(hass, entry)
+    assert room.attributes["sleeping"] is False
+    # Réveil par l'entité : l'autre dormeur n'est pas forcément levé, la
+    # lumière attend un geste ou la fin du répit.
+    assert room.attributes["lights_held"] is True
+    assert turn_on == []
+    await _later(hass, minutes=31)
+    assert _entities(turn_on) == [[LIGHT]]
 
 
 async def test_sleep_ends_at_night_end(hass: HomeAssistant, daytime) -> None:
@@ -1010,3 +1017,126 @@ async def test_warning_return_while_asleep_never_brightens(
     hass.states.async_set(PIR, "on")  # le dormeur bouge
     await hass.async_block_till_done()
     assert all(call.data.get("brightness_pct") != 100 for call in turn_on)
+
+
+async def test_manual_fan_off_stays_off_at_night_end(hass: HomeAssistant, daytime) -> None:
+    daytime.move_to(NIGHT)
+    events = async_capture_events(hass, "logbook_entry")
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(TEMP, "30")
+    hass.states.async_set(FAN, "on", {"percentage": 100})
+    entry = await _setup(hass, **{CONF_LIGHTS: [], CONF_FANS: [FAN], CONF_TEMPERATURE: TEMP})
+    # Réveil hors de la seconde 0 : l'échéance du geste passe avant le tic
+    # de la minute, comme dans Home Assistant à la fin de nuit.
+    wake_at = dt_util.parse_datetime(MORNING) + timedelta(seconds=30)
+    entry.runtime_data.start_sleep(until=wake_at)
+    await hass.async_block_till_done()
+    hass.states.async_set(FAN, "off", {"percentage": 0})  # éteint à la main au coucher
+    await hass.async_block_till_done()
+    assert _room(hass, entry).attributes["overrides_until_wake"] == ["fans"]
+    events.clear()
+
+    daytime.move_to(MORNING)  # tic de la minute, avant l'échéance
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    # Le geste prend fin à la seconde du réveil : rien n'est décidé en sommeil.
+    daytime.move_to(wake_at)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    messages = [event.data["message"] for event in events]
+    assert _room(hass, entry).attributes["sleeping"] is False
+    assert not any("(sommeil" in text for text in messages), messages
+    assert "reprend la gestion des ventilateurs" not in messages
+
+
+async def test_still_sensor_lets_fans_stop_during_sleep(hass: HomeAssistant, daytime) -> None:
+    daytime.move_to(NIGHT)
+    turn_off = async_mock_service(hass, "homeassistant", "turn_off")
+    hass.states.async_set(PIR, "on")  # radar : voit le dormeur immobile
+    hass.states.async_set(FAN, "on")
+    entry = await _setup(
+        hass, **{CONF_LIGHTS: [], CONF_FANS: [FAN], CONF_PRESENCE_STILL: [PIR]}
+    )
+    await _switch(hass, entry, "sleeping")
+    await _vacate(hass)  # parti dormir ailleurs : la pièce est vraiment vide
+
+    assert _room(hass, entry).attributes["presumed_occupied"] is False
+    await _later(hass, seconds=1801)  # délai d'arrêt de nuit
+    assert _entities(turn_off) == [[FAN]]
+
+
+async def test_dead_still_sensor_presumes_again(hass: HomeAssistant, daytime) -> None:
+    daytime.move_to(NIGHT)
+    turn_off = async_mock_service(hass, "homeassistant", "turn_off")
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set("binary_sensor.radar", "unavailable")
+    hass.states.async_set(FAN, "on")
+    entry = await _setup(
+        hass,
+        presence_sensors=[PIR, "binary_sensor.radar"],
+        **{CONF_LIGHTS: [], CONF_FANS: [FAN], CONF_PRESENCE_STILL: ["binary_sensor.radar"]},
+    )
+    await _switch(hass, entry, "sleeping")
+    await _vacate(hass)  # seul le PIR répond : il perd le dormeur immobile
+
+    assert _room(hass, entry).attributes["presumed_occupied"] is True
+    await _later(hass, hours=2)
+    assert turn_off == []
+
+
+async def test_still_sensor_ends_wake_hold_when_room_empties(
+    hass: HomeAssistant, daytime
+) -> None:
+    daytime.move_to(NIGHT)
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LUX, "5")
+    hass.states.async_set(LIGHT, "off")
+    entry = await _setup(hass, **{CONF_PRESENCE_STILL: [PIR]})
+    await _switch(hass, entry, "sleeping")
+    turn_on.clear()
+    daytime.move_to(MORNING)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert _room(hass, entry).attributes["lights_held"] is True  # dormeur au lit
+
+    await _vacate(hass)  # levé et sorti : le radar le dit, le réveil est fini
+    assert _room(hass, entry).attributes["wake_hold_until"] is None
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert _entities(turn_on) == [[LIGHT]]
+
+
+async def test_sleep_entity_ignored_in_room_seen_empty(hass: HomeAssistant) -> None:
+    events = async_capture_events(hass, "logbook_entry")
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LIGHT, "off")
+    hass.states.async_set(BED, "off")
+    entry = await _setup(hass, **{CONF_SLEEP: BED, CONF_PRESENCE_STILL: [PIR]})
+
+    hass.states.async_set(BED, "on")  # téléphone posé immobile au salon
+    await hass.async_block_till_done()
+    assert _room(hass, entry).attributes["sleeping"] is False
+    assert "personne n'est dans la pièce" in events[-1].data["message"]
+
+    hass.states.async_set(BED, "off")
+    hass.states.async_set(PIR, "on")  # au lit
+    hass.states.async_set(BED, "on")
+    await hass.async_block_till_done()
+    assert _room(hass, entry).attributes["sleeping"] is True
+
+
+async def test_sleep_entity_ignored_long_after_pir_lost_presence(
+    hass: HomeAssistant,
+) -> None:
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LIGHT, "off")
+    hass.states.async_set(BED, "off")
+    entry = await _setup(hass, **{CONF_SLEEP: BED})
+    await _vacate(hass)
+    entry.runtime_data._vacant_since -= 31 * 60  # pièce vide depuis 31 min
+
+    hass.states.async_set(BED, "on")
+    await hass.async_block_till_done()
+    assert _room(hass, entry).attributes["sleeping"] is False

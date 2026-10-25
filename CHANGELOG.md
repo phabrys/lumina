@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.12.0 — 2026-10-25
+
+Corrections et réglages tirés des nuits du 23 au 25 octobre.
+
+- Fin de nuit : un geste tenu jusqu'au réveil (ventilateur éteint à la main au coucher) prend fin avec le réveil, et non une fraction de seconde avant. Lumina ne réapplique plus le sommeil à cet instant : le ventilateur éteint à la main ne se rallume plus à pleine vitesse à l'heure du réveil.
+- Nouveau champ facultatif dans **Configurer**, **Détecteurs qui voient une personne immobile** (radar mmWave, comme l'Aqara FP2), choisis parmi les capteurs de présence. Tant que l'un d'eux répond, Lumina ne présume plus de dormeur caché : une chambre qu'il voit vide la nuit l'est vraiment (ventilateurs et clim suivent les délais de nuit), le répit du réveil ne commence que si quelqu'un est là et prend fin quand la pièce se vide. Sans ce champ, rien ne change.
+- Entité de sommeil : un passage à « on » alors que personne n'est dans la pièce (téléphone posé immobile ailleurs) n'endort plus la pièce, et le Journal le dit. Avec un détecteur qui voit l'immobilité, il doit voir quelqu'un ; sinon, quelqu'un doit avoir été détecté depuis moins de 30 min.
+- Réveil par l'entité de sommeil : même répit qu'à la fin de nuit. La lumière ne s'allume plus dès que le téléphone bouge : elle attend un geste ou la fin de la durée du contrôle manuel.
+- Détecteurs de présence tous muets (piles mortes…) : Lumina n'éteint plus lumières, ventilateurs ni clims parce que la pièce semble vide, même quand la panne date d'avant le démarrage ou survient pendant la confirmation d'absence. Un détecteur muet depuis plus d'une heure est signalé dans les Réparations de Home Assistant, et le signalement disparaît quand il répond de nouveau.
+- Capteur d'état : nouveaux attributs `presence_still_sensors`, `presence_unavailable` (détecteurs muets) et `presence_unknown` (aucun détecteur ne répond).
+
 ## 0.11.0 — 2026-10-24
 
 - Fin de nuit selon le jour : deux nouveaux champs facultatifs dans **Configurer**, **Jours travaillés** (capteur de l'intégration Workday) et **Calendriers de vacances**. Un jour de repos (week-end, férié), la nuit se termine à la nouvelle heure **Fin de la nuit (repos)** ; un jour où un calendrier de vacances a un événement, à la **Fin de la nuit (vacances)** ; les autres jours, à la **Fin de la nuit**. Le sommeil, la nuit forcée et la plage de nuit suivent l'heure du matin concerné. Chaque nouvelle heure n'existe que si sa source est choisie : sans elles, rien ne change.

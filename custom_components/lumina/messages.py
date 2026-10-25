@@ -36,6 +36,14 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
             "sort du sommeil, fin de la nuit ; rien ne s'allume ni ne s'arrête "
             "jusqu'à {time}, sauf geste sur la lumière"
         ),
+        "sleep_ended_entity_held": (
+            "sort du sommeil (entité de sommeil) ; rien ne s'allume ni ne s'arrête "
+            "jusqu'à {time}, sauf geste sur la lumière"
+        ),
+        "sleep_entity_ignored_vacant": (
+            "ne passe pas en sommeil : l'entité de sommeil s'active, mais "
+            "personne n'est dans la pièce"
+        ),
         "wake_hold_end": "reprend la gestion habituelle après le réveil",
         "sleep_ended_vacant": "sort du sommeil, pièce vide",
         # Lumières
@@ -92,6 +100,14 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "sleep_ended_morning_held": (
             "wakes up, end of the night; nothing turns on or off until {time}, "
             "unless the lights are switched by hand"
+        ),
+        "sleep_ended_entity_held": (
+            "wakes up (sleep entity); nothing turns on or off until {time}, "
+            "unless the lights are switched by hand"
+        ),
+        "sleep_entity_ignored_vacant": (
+            "does not go to sleep: the sleep entity turned on, but nobody is "
+            "in the room"
         ),
         "wake_hold_end": "resumes normal control after wake-up",
         "sleep_ended_vacant": "wakes up, room empty",

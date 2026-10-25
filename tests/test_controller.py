@@ -13,6 +13,7 @@ from pytest_homeassistant_custom_component.common import (
 
 from homeassistant.core import Context, HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.util import dt as dt_util
 
 from .common import (
@@ -39,6 +40,7 @@ from custom_components.lumina.const import (
     CONF_LIGHTS,
     CONF_PRESENCE_HOLD,
     CONF_TEMPERATURE,
+    DOMAIN,
 )
 
 pytestmark = pytest.mark.usefixtures("daytime")
@@ -1077,6 +1079,61 @@ async def test_unavailable_presence_sensor_after_restart(hass: HomeAssistant) ->
     await hass.async_block_till_done()
     await _later(hass, seconds=31)
     assert _room(hass, entry).state == "vacant"
+
+
+async def test_dead_presence_sensor_turns_nothing_off(hass: HomeAssistant) -> None:
+    turn_off = async_mock_service(hass, "homeassistant", "turn_off")
+    clim_off = async_mock_service(hass, "climate", "turn_off")
+    hass.states.async_set(PIR, "unavailable")  # piles mortes, pièce vue vide
+    hass.states.async_set(LIGHT, "on")
+    hass.states.async_set(FAN, "on")
+    hass.states.async_set("climate.salon", "cool")
+    entry = await _setup(
+        hass, **{CONF_FANS: [FAN], CONF_CLIMATES: ["climate.salon"]}
+    )
+
+    room = _room(hass, entry)
+    assert room.attributes["presence_unknown"] is True
+    assert room.attributes["presence_unavailable"] == [PIR]
+    await _later(hass, hours=2)
+    assert turn_off == clim_off == []
+
+
+async def test_presence_sensor_dying_during_confirmation_keeps_room(
+    hass: HomeAssistant,
+) -> None:
+    turn_off = async_mock_service(hass, "homeassistant", "turn_off")
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LIGHT, "on")
+    entry = await _setup(hass)
+    hass.states.async_set(PIR, "off")
+    await hass.async_block_till_done()
+    hass.states.async_set(PIR, "unavailable")
+    await hass.async_block_till_done()
+
+    await _later(hass, minutes=10)
+    assert _room(hass, entry).state == "occupied"
+    assert turn_off == []
+
+
+async def test_dead_presence_sensor_raises_repair_issue(hass: HomeAssistant) -> None:
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set("binary_sensor.pir_2", "unavailable")
+    hass.states.async_set(LIGHT, "off")
+    entry = await _setup(hass, presence_sensors=[PIR, "binary_sensor.pir_2"])
+    issue_id = f"presence_unavailable_{entry.entry_id}"
+    registry = ir.async_get(hass)
+
+    await _later(hass, minutes=30)  # redémarrage de Zigbee2MQTT : pas encore
+    assert registry.async_get_issue(DOMAIN, issue_id) is None
+    await _later(hass, hours=1, minutes=1)  # l'horloge des tests ne bouge pas
+    issue = registry.async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_placeholders["room"] == "Salon"
+
+    hass.states.async_set("binary_sensor.pir_2", "off")  # piles changées
+    await hass.async_block_till_done()
+    assert registry.async_get_issue(DOMAIN, issue_id) is None
 
 
 async def _fan_started_by_lumina(hass: HomeAssistant):

@@ -8,7 +8,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, STATE_ON, Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import entity_registry as er, issue_registry as ir
 from homeassistant.helpers.restore_state import async_get as async_get_restore_data
 
 from .const import (
@@ -19,7 +19,9 @@ from .const import (
     CONF_LIGHTS,
     CONF_PRESENCE,
     CONF_PRESENCE_HOLD,
+    CONF_PRESENCE_STILL,
     DOMAIN,
+    ISSUE_PRESENCE_UNAVAILABLE,
     LEGACY_NIGHT_OVERRIDE_SWITCH,
 )
 from .controller import RoomController
@@ -30,6 +32,7 @@ _LOGGER = logging.getLogger(__name__)
 _LIST_FIELDS = (
     CONF_PRESENCE,
     CONF_PRESENCE_HOLD,
+    CONF_PRESENCE_STILL,
     CONF_LIGHTS,
     CONF_FANS,
     CONF_CLIMATES,
@@ -51,7 +54,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LuminaConfigEntry) -> bo
     """Crée le contrôleur de la pièce et ses entités."""
     # Les options (si l'utilisateur a reconfiguré la pièce) remplacent les données initiales.
     config = entry.options or entry.data
-    controller = RoomController(hass, entry.title, config)
+    controller = RoomController(hass, entry.title, config, entry.entry_id)
     entry.runtime_data = controller
     _migrate_night_override_switch(hass, entry, controller)
 
@@ -89,6 +92,11 @@ def _migrate_night_override_switch(
 async def async_unload_entry(hass: HomeAssistant, entry: LuminaConfigEntry) -> bool:
     """Décharge les entités de la pièce."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: LuminaConfigEntry) -> None:
+    """Pièce supprimée : sa panne de détecteur n'a plus lieu d'être signalée."""
+    ir.async_delete_issue(hass, DOMAIN, f"{ISSUE_PRESENCE_UNAVAILABLE}_{entry.entry_id}")
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: LuminaConfigEntry) -> None:

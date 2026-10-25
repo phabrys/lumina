@@ -30,14 +30,20 @@ from .const import (
     WAKE_MORNING,
 )
 
+# Réveils qui laissent au dormeur un répit : l'heure de fin de nuit, et
+# l'entité de sommeil (un téléphone qui bouge ne dit pas que tous sont levés)
+_HELD_WAKES = (WAKE_MORNING, SLEEP_ENTITY)
+
 
 class SleepControl(RoomBase):
     """Partie du contrôleur consacrée au sommeil.
 
     Un dormeur immobile peut échapper au détecteur : en sommeil, rien ne
     s'allume (sauf la veilleuse) et ni ventilateur ni clim ne s'arrêtent parce
-    que la pièce semble vide. Au réveil du matin, ce répit dure encore la
-    durée du contrôle manuel, sauf geste sur la lumière.
+    que la pièce semble vide. Au réveil du matin ou par l'entité de sommeil,
+    ce répit dure encore la durée du contrôle manuel, sauf geste sur la
+    lumière. Un détecteur qui voit l'immobilité (radar) rend l'absence réelle :
+    rien n'est alors présumé.
     """
 
     # Entité qui met la pièce en sommeil (lit, téléphone en charge…)
@@ -63,6 +69,14 @@ class SleepControl(RoomBase):
 
     def _reevaluate_with_vacancy_credit(self) -> None:
         """Réévalue en déduisant des délais d'extinction l'absence déjà écoulée."""
+        raise NotImplementedError
+
+    def _still_watch(self) -> bool:
+        """Un détecteur qui voit les personnes immobiles répond-il ?"""
+        raise NotImplementedError
+
+    def _presence_for_sleep(self) -> bool:
+        """Quelqu'un est-il (ou était-il à l'instant) dans la pièce ?"""
         raise NotImplementedError
 
     # --- Entrée et sortie -------------------------------------------------
@@ -129,12 +143,13 @@ class SleepControl(RoomBase):
     def wake(self, *, reason: str = SLEEP_MANUAL, reevaluate: bool = True) -> None:
         """Fin du sommeil : les gestes tenus jusqu'au réveil prennent fin.
 
-        Au réveil du matin (heure seule), un dormeur peut être encore au lit,
-        même invisible pour le détecteur : le répit du réveil commence.
+        Au réveil du matin ou par l'entité de sommeil, un dormeur peut être
+        encore au lit, même invisible pour le détecteur : le répit du réveil
+        commence.
         """
         if not self.sleeping:
             return
-        sleeper = reason == WAKE_MORNING and self.occupied_or_presumed
+        sleeper = reason in _HELD_WAKES and self.occupied_or_presumed
         self.sleeping = False
         self.sleeping_until = None
         self.sleep_source = None
@@ -147,9 +162,9 @@ class SleepControl(RoomBase):
             self._start_wake_hold(dt_util.utcnow())
         else:
             self._release_wake_hold()
-        if reason == WAKE_MORNING and self.wake_hold_until is not None:
+        if reason in _HELD_WAKES and self.wake_hold_until is not None:
             self._log(
-                "sleep_ended_morning_held",
+                f"sleep_ended_{reason}_held",
                 time=dt_util.as_local(self.wake_hold_until).strftime("%H:%M"),
             )
         else:
@@ -193,18 +208,22 @@ class SleepControl(RoomBase):
     def _presumes(self, source: str | None, seen: bool) -> bool:
         """Ce sommeil présume-t-il un dormeur que le détecteur ne voit plus ?
 
-        Seulement après une présence réelle depuis le coucher, et pour un
-        sommeil deviné au geste, seulement dans une chambre.
+        Seulement après une présence réelle depuis le coucher, pour un sommeil
+        deviné au geste, seulement dans une chambre, et jamais quand un
+        détecteur voit les personnes immobiles.
         """
-        return seen and (
-            source != SLEEP_LIGHTS_OFF or self.bedtime_gesture == BEDTIME_UNTIL_WAKE
+        return (
+            seen
+            and (source != SLEEP_LIGHTS_OFF or self.bedtime_gesture == BEDTIME_UNTIL_WAKE)
+            and not self._still_watch()
         )
 
     @property
     def presumed_occupied(self) -> bool:
         """Dormeur présumé là, pendant le sommeil ou le réveil du matin."""
         if self.wake_hold_until is not None:
-            return True
+            # Un détecteur qui voit l'immobilité verrait le dormeur.
+            return not self._still_watch()
         return self.sleeping and self._presumes(self.sleep_source, self._sleep_presence_seen)
 
     @property
@@ -212,8 +231,13 @@ class SleepControl(RoomBase):
         return self.occupied or self.presumed_occupied
 
     def _keeps_running(self, group: ActuatorGroup) -> bool:
-        """Ventilateurs et clim ne s'arrêtent pas sur un dormeur, même invisible."""
-        return group.kind != KIND_LIGHTS and (self.sleeping or self.presumed_occupied)
+        """Ventilateurs et clim ne s'arrêtent pas sur un dormeur, même invisible.
+
+        Avec un détecteur qui voit l'immobilité, une pièce vide l'est vraiment.
+        """
+        if group.kind == KIND_LIGHTS:
+            return False
+        return (self.sleeping and not self._still_watch()) or self.presumed_occupied
 
     # --- Réveil du matin --------------------------------------------------
 
@@ -280,6 +304,8 @@ class SleepControl(RoomBase):
 
         Le retour d'une entité muette à « on » ne rendort pas une pièce réveillée
         le matin ; à « off », il réveille un sommeil qu'elle avait lancé.
+        Un passage à « on » dans une pièce vide (téléphone posé ailleurs) est
+        ignoré.
         """
         old_state = event.data["old_state"]
         new_state = event.data["new_state"]
@@ -287,6 +313,10 @@ class SleepControl(RoomBase):
             return
         old = None if old_state is None else old_state.state
         if new_state.state == STATE_ON and old == STATE_OFF:
+            if not self.sleeping and not self._presence_for_sleep():
+                self._log("sleep_entity_ignored_vacant")
+                self._notify()
+                return
             self.start_sleep(source=SLEEP_ENTITY)
         elif new_state.state == STATE_OFF and (
             old == STATE_ON or self.sleep_source == SLEEP_ENTITY

@@ -10,6 +10,9 @@ DOMAIN: Final = "lumina"
 # Clés de configuration (config flow / options flow)
 CONF_AREA: Final = "area_id"
 CONF_PRESENCE: Final = "presence_sensors"
+# Détecteurs (radar mmWave…) qui voient une personne immobile : leur absence
+# est réelle, aucun dormeur caché n'est présumé
+CONF_PRESENCE_STILL: Final = "presence_still_sensors"
 CONF_ILLUMINANCE: Final = "illuminance_sensor"
 CONF_TEMPERATURE: Final = "temperature_sensor"
 CONF_LIGHTS: Final = "lights"
@@ -178,6 +181,14 @@ BEDTIME_MODES: Final = [BEDTIME_OVERRIDE, BEDTIME_UNTIL_VACANT, BEDTIME_UNTIL_WA
 SELECT_BEDTIME: Final = "bedtime_gesture"
 # Switch d'avant 0.10.0 (« contrôle manuel jusqu'au matin »), repris par le select
 LEGACY_NIGHT_OVERRIDE_SWITCH: Final = "night_override_until_morning"
+
+# Entité de sommeil sans détecteur qui voit l'immobilité : elle n'endort la
+# pièce que si quelqu'un y a été détecté depuis au plus ce délai
+SLEEP_RECENT_PRESENCE: Final = 1800  # s
+
+# Détecteur de présence muet depuis ce délai : signalé dans les Réparations
+PRESENCE_ISSUE_DELAY: Final = 3600  # s
+ISSUE_PRESENCE_UNAVAILABLE: Final = "presence_unavailable"
 
 # Hystérésis appliquée à la température pour éviter les bascules répétées
 TEMP_HYSTERESIS: Final = 1.0
