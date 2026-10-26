@@ -19,6 +19,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "reason_sleep": "sommeil",
         "reason_lux_unavailable": "luminosité indisponible",
         "reason_lux_unavailable_sun_down": "luminosité indisponible, soleil couché",
+        "reason_sun_down": "soleil couché",
         "reason_temperature": "{temp:g} °C",
         "reason_apparent_temperature": "{temp:g} °C ressentis",
         # Période
@@ -53,6 +54,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "lights_restored": "rétablit les lumières, présence de retour ({reason})",
         "lights_on": "allume les lumières à {brightness:g} % ({reason})",
         "lights_off_daylight": "éteint les lumières, lumière naturelle suffisante ({lux:g} lx)",
+        "lights_off_sun_up": "éteint les lumières, soleil levé",
         "lights_warning": "baisse les lumières avant extinction",
         "lights_off_vacant": "éteint les lumières, pièce vide",
         # Ventilateurs
@@ -89,6 +91,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "reason_sleep": "sleep",
         "reason_lux_unavailable": "illuminance unavailable",
         "reason_lux_unavailable_sun_down": "illuminance unavailable, sun down",
+        "reason_sun_down": "sun down",
         "reason_temperature": "{temp:g} °C",
         "reason_apparent_temperature": "{temp:g} °C apparent",
         "night_forced": "switches to night mode (forced)",
@@ -120,6 +123,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "lights_restored": "restores the lights, presence back ({reason})",
         "lights_on": "turns on the lights at {brightness:g} % ({reason})",
         "lights_off_daylight": "turns off the lights, enough daylight ({lux:g} lx)",
+        "lights_off_sun_up": "turns off the lights, sun up",
         "lights_warning": "dims the lights before turning them off",
         "lights_off_vacant": "turns off the lights, room empty",
         "fans_on": "turns on the fans ({reason})",

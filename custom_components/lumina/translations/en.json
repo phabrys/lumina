@@ -28,7 +28,7 @@
         "data_description": {
           "presence_sensors": "The room is occupied as soon as one of these sensors is on.",
           "lights": "Turned on on arrival when the room is dark.",
-          "illuminance_sensor": "Without a sensor, the room is always considered dark.",
+          "illuminance_sensor": "Without a sensor, Lumina follows the sun: lights on after sunset, off after sunrise.",
           "fans": "Turned on on arrival when the temperature exceeds the threshold.",
           "climates": "Lumina never turns them on. Empty room: off, eco or a raised setpoint as configured, then back to the previous state when someone returns.",
           "temperature_sensor": "Without a sensor, fans follow presence only.",
@@ -72,7 +72,7 @@
         "data_description": {
           "presence_sensors": "The room is occupied as soon as one of these sensors is on.",
           "lights": "Turned on on arrival when the room is dark.",
-          "illuminance_sensor": "Without a sensor, the room is always considered dark.",
+          "illuminance_sensor": "Without a sensor, Lumina follows the sun: lights on after sunset, off after sunrise.",
           "fans": "Turned on on arrival when the temperature exceeds the threshold.",
           "climates": "Lumina never turns them on. Empty room: off, eco or a raised setpoint as configured, then back to the previous state when someone returns.",
           "temperature_sensor": "Without a sensor, fans follow presence only.",

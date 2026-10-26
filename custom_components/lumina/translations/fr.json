@@ -28,7 +28,7 @@
         "data_description": {
           "presence_sensors": "La pièce est occupée dès qu'un de ces capteurs est actif.",
           "lights": "Allumées à l'arrivée si la pièce est sombre.",
-          "illuminance_sensor": "Sans capteur, la pièce est toujours considérée sombre.",
+          "illuminance_sensor": "Sans capteur, Lumina suit le soleil : allumage soleil couché, extinction après son lever.",
           "fans": "Allumés à l'arrivée si la température dépasse le seuil.",
           "climates": "Lumina ne les allume jamais. Pièce vide : arrêt, eco ou consigne relevée selon le réglage, puis retour à l'état d'avant quand quelqu'un revient.",
           "temperature_sensor": "Sans capteur, les ventilateurs suivent uniquement la présence.",
@@ -72,7 +72,7 @@
         "data_description": {
           "presence_sensors": "La pièce est occupée dès qu'un de ces capteurs est actif.",
           "lights": "Allumées à l'arrivée si la pièce est sombre.",
-          "illuminance_sensor": "Sans capteur, la pièce est toujours considérée sombre.",
+          "illuminance_sensor": "Sans capteur, Lumina suit le soleil : allumage soleil couché, extinction après son lever.",
           "fans": "Allumés à l'arrivée si la température dépasse le seuil.",
           "climates": "Lumina ne les allume jamais. Pièce vide : arrêt, eco ou consigne relevée selon le réglage, puis retour à l'état d'avant quand quelqu'un revient.",
           "temperature_sensor": "Sans capteur, les ventilateurs suivent uniquement la présence.",

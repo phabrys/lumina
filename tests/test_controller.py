@@ -38,6 +38,7 @@ from custom_components.lumina.const import (
     CONF_CLIMATES,
     CONF_FANS,
     CONF_HUMIDITY,
+    CONF_ILLUMINANCE,
     CONF_LIGHTS,
     CONF_PRESENCE_HOLD,
     CONF_TEMPERATURE,
@@ -781,6 +782,64 @@ async def test_unavailable_lux_falls_back_to_sun(
     hass.states.async_set(PIR, "on")
     await hass.async_block_till_done()
     assert len(turn_on) == expected_calls
+
+
+@pytest.mark.parametrize(("sun", "expected_calls"), [("above_horizon", 0), ("below_horizon", 1)])
+async def test_no_lux_sensor_follows_sun(
+    hass: HomeAssistant, sun: str, expected_calls: int
+) -> None:
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    hass.states.async_set("sun.sun", sun)
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LIGHT, "off")
+    await _setup(hass, **{CONF_ILLUMINANCE: None})
+
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert len(turn_on) == expected_calls
+
+
+async def test_no_lux_sensor_sunrise_and_sunset(hass: HomeAssistant) -> None:
+    entries = async_capture_events(hass, "logbook_entry")
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    turn_off = async_mock_service(hass, "homeassistant", "turn_off")
+    hass.states.async_set("sun.sun", "below_horizon")
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LIGHT, "off")
+    entry = await _setup(hass, **{CONF_ILLUMINANCE: None})
+
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert len(turn_on) == 1
+    assert "soleil couché" in entries[-1].data["message"]
+
+    # Le soleil se lève, quelqu'un est là : extinction 5 min plus tard.
+    hass.states.async_set(LIGHT, "on", context=turn_on[0].context)
+    hass.states.async_set("sun.sun", "above_horizon")
+    await hass.async_block_till_done()
+    assert turn_off == []
+    # La course du soleil (attributs seuls) ne relance pas le délai.
+    await _later(hass, seconds=200)
+    hass.states.async_set("sun.sun", "above_horizon", {"elevation": 12})
+    await hass.async_block_till_done()
+    await _later(hass, seconds=301)
+    assert _entities(turn_off) == [[LIGHT]]
+    assert _room(hass, entry).attributes["daylight_locked"] is True
+    assert entries[-1].data["message"] == "éteint les lumières, soleil levé"
+
+    # Toujours jour : pas de rallumage au mouvement suivant.
+    hass.states.async_set(LIGHT, "off", context=turn_off[0].context)
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert len(turn_on) == 1
+
+    # Coucher du soleil : l'allumage automatique reprend après 10 min.
+    hass.states.async_set("sun.sun", "below_horizon")
+    await hass.async_block_till_done()
+    await _later(hass, seconds=601)
+    assert len(turn_on) == 2
+    assert _room(hass, entry).attributes["daylight_locked"] is False
 
 
 async def test_simultaneous_changes_make_one_override(hass: HomeAssistant) -> None:

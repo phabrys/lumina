@@ -15,6 +15,8 @@ from .const import (
     KIND_LIGHTS,
     SETTING_DAYLIGHT_OFF_LUX,
     SETTING_LUX_THRESHOLD,
+    SUN_ABOVE_HORIZON,
+    SUN_ENTITY,
 )
 
 
@@ -27,15 +29,36 @@ class DaylightControl(RoomBase):
         self._daylight_timer: CALLBACK_TYPE | None = None
         self._relock_timer: CALLBACK_TYPE | None = None
 
+    def _sun_up(self) -> bool:
+        """Soleil levé ? Inconnu, il est supposé couché."""
+        sun = self.hass.states.get(SUN_ENTITY)
+        return sun is not None and sun.state == SUN_ABOVE_HORIZON
+
+    def _daylight_enough(self) -> bool:
+        """La lumière naturelle suffit-elle à éteindre ?
+
+        Sans capteur de luminosité, le soleil levé en tient lieu.
+        """
+        if self.illuminance is None:
+            return self._sun_up()
+        off_lux = self.settings[SETTING_DAYLIGHT_OFF_LUX]
+        lux = self._numeric_state(self.illuminance)
+        return off_lux > 0 and lux is not None and lux >= off_lux
+
+    def _dark_again(self) -> bool:
+        """Fait-il de nouveau sombre, pour lever le verrou d'allumage ?"""
+        if self.illuminance is None:
+            return not self._sun_up()
+        lux = self._numeric_state(self.illuminance)
+        return lux is not None and lux < self.settings[SETTING_LUX_THRESHOLD]
+
     def _check_daylight(self) -> None:
         """Éteint les lumières quand la lumière naturelle suffit durablement."""
         group = self.groups[KIND_LIGHTS]
-        off_lux = self.settings[SETTING_DAYLIGHT_OFF_LUX]
-        lux = self._numeric_state(self.illuminance)
 
         # Verrou posé après une extinction : levé quand il refait sombre.
         if self.daylight_locked:
-            if lux is not None and lux < self.settings[SETTING_LUX_THRESHOLD]:
+            if self._dark_again():
                 if self._relock_timer is None:
                     self._relock_timer = async_call_later(
                         self.hass, DAYLIGHT_RELOCK_DELAY, self._unlock_daylight
@@ -45,9 +68,7 @@ class DaylightControl(RoomBase):
                 self._relock_timer = None
 
         if (
-            off_lux <= 0
-            or lux is None
-            or lux < off_lux
+            not self._daylight_enough()
             or not self.occupied
             or not group.active
             or not self._any_on(group)
@@ -64,18 +85,15 @@ class DaylightControl(RoomBase):
     def _daylight_off(self, _now: datetime) -> None:
         self._daylight_timer = None
         group = self.groups[KIND_LIGHTS]
-        lux = self._numeric_state(self.illuminance)
-        off_lux = self.settings[SETTING_DAYLIGHT_OFF_LUX]
-        if (
-            off_lux > 0
-            and lux is not None
-            and lux >= off_lux
-            and group.active
-            and self._any_on(group)
-        ):
+        if self._daylight_enough() and group.active and self._any_on(group):
             self._call(group, SERVICE_TURN_OFF)
             self.daylight_locked = True
-            self._log("lights_off_daylight", lux=lux)
+            if self.illuminance is None:
+                self._log("lights_off_sun_up")
+            else:
+                self._log(
+                    "lights_off_daylight", lux=self._numeric_state(self.illuminance)
+                )
         self._notify()
 
     @callback

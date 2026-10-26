@@ -115,6 +115,7 @@ CONFIRMATION_WINDOW: Final = 60  # s
 # Repli quand le capteur de luminosité ne répond pas
 SUN_ENTITY: Final = "sun.sun"
 SUN_BELOW_HORIZON: Final = "below_horizon"
+SUN_ABOVE_HORIZON: Final = "above_horizon"
 
 # Lumière du jour : durée au-dessus du seuil avant extinction, et durée
 # sous le seuil d'allumage avant de réautoriser l'allumage automatique.

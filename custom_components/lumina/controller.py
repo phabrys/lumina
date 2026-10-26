@@ -288,6 +288,8 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
         """Abonne le contrôleur aux changements d'état utiles."""
         self._track([*self.presence, *self.presence_hold], self._on_presence)
         self._track(self.environment_sensors, self._on_environment)
+        # Soleil : remplace le capteur de luminosité absent ou muet.
+        self._track([SUN_ENTITY], self._on_sun)
         if self.sleep_entity:
             self._track([self.sleep_entity], self._on_sleep_entity)
         self._track(self.day_sources, self._on_day_source)
@@ -700,17 +702,11 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
         return self._numeric_state(self.temperature)
 
     def _is_dark(self) -> bool:
-        if self.illuminance is None:
-            # Pas de capteur choisi : la pièce est considérée comme sombre.
-            return True
         lux = self._numeric_state(self.illuminance)
         if lux is not None:
             return lux < self.settings[SETTING_LUX_THRESHOLD]
-        # Capteur muet : on se fie au soleil plutôt que de supposer la nuit.
-        sun = self.hass.states.get(SUN_ENTITY)
-        if sun is None or sun.state in INVALID_STATES:
-            return True
-        return sun.state == SUN_BELOW_HORIZON
+        # Pas de capteur choisi, ou capteur muet : on se fie au soleil.
+        return not self._sun_up()
 
     def _to_turn_on(self, group: ActuatorGroup) -> list[str]:
         """Entités du groupe à allumer, selon son mode."""
@@ -736,6 +732,8 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
                     else "reason_lux_unavailable"
                 )
             )
+        elif not self._sun_up():
+            parts.append(self._message("reason_sun_down"))
         apparent = self.apparent_temperature
         if apparent is not None:
             parts.append(self._message("reason_apparent_temperature", temp=apparent))
@@ -1222,6 +1220,19 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
             self._log(f"{self.period}_started")
         if woke or changed:
             self._reevaluate_with_vacancy_credit()
+
+    @callback
+    def _on_sun(self, event: Event[EventStateChangedData]) -> None:
+        # Seuls le lever et le coucher comptent, pas la course du soleil.
+        old_state = event.data["old_state"]
+        new_state = event.data["new_state"]
+        if old_state is not None and new_state is not None and (
+            old_state.state == new_state.state
+        ):
+            return
+        if self.occupied:
+            self._evaluate_lights()
+        self._notify()
 
     @callback
     def _on_environment(self, event: Event[EventStateChangedData]) -> None:

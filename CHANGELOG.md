@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.14.0 — 2026-10-26
+
+- Pièce sans capteur de luminosité : Lumina suit maintenant le soleil (`sun.sun`) au lieu de considérer la pièce toujours sombre. Les lumières ne s'allument automatiquement que soleil couché ; une lumière gérée par Lumina s'éteint 5 min après le lever du soleil si la pièce est occupée (« éteint les lumières, soleil levé » dans le Journal), puis l'allumage automatique reprend 10 min après le coucher. Un contrôle manuel en cours est respecté.
+- Journal : pour ces pièces, la raison d'un allumage indique « soleil couché ».
+
 ## 0.13.0 — 2026-10-25
 
 - Nouvelle période **soirée**, entre la nouvelle heure **Début de la soirée** et le début de la nuit. Elle ne change que les lumières : elles s'allument avec la **Luminosité des lumières (soirée)** (70 % par défaut) et la **Teinte des lumières (soirée)** (3000 K par défaut). Délais, seuils de température, clim et geste du coucher suivent les règles du jour : éteindre à la main en soirée n'endort pas la pièce. La nuit forcée et le sommeil l'emportent sur la soirée.
