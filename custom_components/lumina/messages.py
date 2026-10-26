@@ -70,6 +70,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "climate_eco_vacant": "passe la clim en eco, pièce vide",
         "climate_setback_vacant": "relève la consigne de la clim, pièce vide",
         "climate_restored": "rétablit la clim, présence de retour",
+        "climate_on_evening": "allume la clim à {temperature:g} °C, présence en soirée",
         # Reprise manuelle
         "lights_override": "laisse la main sur les lumières pendant {minutes:g} min",
         "fans_override": "laisse la main sur les ventilateurs pendant {minutes:g} min",
@@ -137,6 +138,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "climate_eco_vacant": "switches the AC to eco, room empty",
         "climate_setback_vacant": "raises the AC setpoint, room empty",
         "climate_restored": "restores the AC, presence back",
+        "climate_on_evening": "turns on the AC at {temperature:g} °C, presence in the evening",
         "lights_override": "leaves the lights to manual control for {minutes:g} min",
         "fans_override": "leaves the fans to manual control for {minutes:g} min",
         "lights_override_end": "resumes managing the lights",

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.16.0 — 2026-10-26
+
+- Nouveau réglage **Consigne de la clim (soirée)** (0 = désactivé, par défaut ; jusqu'à 30 °C). En soirée, une clim arrêtée part en froid à cette consigne dès que la pièce est occupée (« allume la clim à 25 °C, présence en soirée » dans le Journal), y compris quand la soirée commence avec quelqu'un dans la pièce. Pièce vide, elle s'arrête après le délai réglé quel que soit le réglage du jour, puis repart au retour.
+- Une clim dans un autre mode (ventilation…) n'est pas touchée. Arrêtée à la main, elle ne repart pas avant la fin du contrôle manuel ou le départ de la pièce. Ni en sommeil ni la nuit : une clim en marche y reste, avec l'action de nuit en pièce vide.
+
 ## 0.15.0 — 2026-10-26
 
 - Pièce sans capteur de luminosité : deux nouveaux réglages, **Allumage avant le coucher du soleil** et **Extinction après le lever du soleil** (30 min par défaut, de 0 à 180 min), car l'intérieur est plus sombre que dehors. Une personne présente quand la marge du soir commence voit la lumière s'allumer sans attendre un mouvement ; une lumière gérée par Lumina s'éteint dès la fin de la marge du matin (au lieu de 5 min après le lever).

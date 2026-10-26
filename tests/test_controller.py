@@ -1158,6 +1158,150 @@ async def test_climate_not_restored_after_long_absence(
     assert set_mode == []
 
 
+async def _setup_evening_climate(
+    hass: HomeAssistant, daytime, temperature: float = 25, mode: str = "off"
+) -> MockConfigEntry:
+    """Chambre en soirée, clim arrêtée, consigne de soirée réglée, personne."""
+    daytime.move_to(EVENING)
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LUX, "500")
+    hass.states.async_set(LIGHT, "off")
+    hass.states.async_set(
+        CLIMATE, mode, {**CLIMATE_ATTRS, "hvac_modes": ["off", "cool", "fan_only"]}
+    )
+    entry = await _setup(hass, **{CONF_CLIMATES: [CLIMATE]})
+    await _set_time(hass, entry, "evening_start", "19:00:00")
+    await hass.services.async_call(
+        "number",
+        "set_value",
+        {
+            "entity_id": _eid(hass, entry, "number", "evening_climate_temperature"),
+            "value": temperature,
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    return entry
+
+
+async def test_evening_climate_on_with_presence(hass: HomeAssistant, daytime) -> None:
+    set_temp = async_mock_service(hass, "climate", "set_temperature")
+    entries = async_capture_events(hass, "logbook_entry")
+    await _setup_evening_climate(hass, daytime)
+    assert set_temp == []
+
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert _entities(set_temp) == [[CLIMATE]]
+    assert set_temp[0].data["hvac_mode"] == "cool"
+    assert set_temp[0].data["temperature"] == 25
+    assert entries[-1].data["message"] == "allume la clim à 25 °C, présence en soirée"
+
+
+async def test_evening_climate_off_when_vacant_then_on_again(
+    hass: HomeAssistant, daytime
+) -> None:
+    set_temp = async_mock_service(hass, "climate", "set_temperature")
+    turn_off = async_mock_service(hass, "climate", "turn_off")
+    set_mode = async_mock_service(hass, "climate", "set_hvac_mode")
+    entry = await _setup_evening_climate(hass, daytime)
+    # Arrêt en pièce vide, même si le jour est réglé sur « ne rien faire »
+    await _select(hass, entry, "climate_vacant_day", "none")
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    hass.states.async_set(
+        CLIMATE, "cool", {**CLIMATE_ATTRS, "temperature": 25, "hvac_modes": ["off", "cool"]}
+    )
+    await hass.async_block_till_done()
+    assert _room(hass, entry).state == "occupied"  # confirmation, pas un geste
+
+    hass.states.async_set(PIR, "off")
+    await hass.async_block_till_done()
+    await _later(hass, seconds=31)  # absence confirmée
+    await _later(hass, seconds=31 + 900)
+    assert _entities(turn_off) == [[CLIMATE]]
+
+    hass.states.async_set(
+        CLIMATE, "off", {**CLIMATE_ATTRS, "temperature": 25, "hvac_modes": ["off", "cool"]}
+    )
+    await hass.async_block_till_done()
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    # Retour : l'état d'avant (froid) est rétabli, sans second allumage.
+    assert set_mode[0].data["hvac_mode"] == "cool"
+    assert len(set_temp) == 1
+
+
+async def test_evening_climate_disabled_by_default(hass: HomeAssistant, daytime) -> None:
+    set_temp = async_mock_service(hass, "climate", "set_temperature")
+    await _setup_evening_climate(hass, daytime, temperature=0)
+
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert set_temp == []
+
+
+async def test_evening_climate_starts_with_the_evening(hass: HomeAssistant, daytime) -> None:
+    set_temp = async_mock_service(hass, "climate", "set_temperature")
+    daytime.move_to("2026-10-18T18:59:30-07:00")
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LUX, "500")
+    hass.states.async_set(LIGHT, "off")
+    hass.states.async_set(CLIMATE, "off", {**CLIMATE_ATTRS, "hvac_modes": ["off", "cool"]})
+    entry = await _setup(hass, **{CONF_CLIMATES: [CLIMATE]})
+    await _set_time(hass, entry, "evening_start", "19:00:00")
+    await hass.services.async_call(
+        "number",
+        "set_value",
+        {
+            "entity_id": _eid(hass, entry, "number", "evening_climate_temperature"),
+            "value": 24,
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+    assert set_temp == []
+
+    daytime.move_to("2026-10-18T19:00:00-07:00")
+    await _later(hass, seconds=0)
+    assert set_temp[0].data["temperature"] == 24
+
+
+async def test_evening_climate_respects_manual_off(hass: HomeAssistant, daytime) -> None:
+    set_temp = async_mock_service(hass, "climate", "set_temperature")
+    entry = await _setup_evening_climate(hass, daytime)
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    hass.states.async_set(CLIMATE, "cool", {**CLIMATE_ATTRS, "hvac_modes": ["off", "cool"]})
+    await hass.async_block_till_done()
+
+    # Arrêtée à la main : contrôle manuel, pas de relance.
+    hass.states.async_set(CLIMATE, "off", {**CLIMATE_ATTRS, "hvac_modes": ["off", "cool"]})
+    await hass.async_block_till_done()
+    assert _room(hass, entry).state == "override"
+    assert len(set_temp) == 1
+
+
+async def test_evening_climate_not_at_night_or_asleep(hass: HomeAssistant, daytime) -> None:
+    set_temp = async_mock_service(hass, "climate", "set_temperature")
+    entry = await _setup_evening_climate(hass, daytime)
+    await _switch(hass, entry, "sleeping")
+
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert set_temp == []
+
+
+async def test_evening_climate_leaves_other_modes(hass: HomeAssistant, daytime) -> None:
+    set_temp = async_mock_service(hass, "climate", "set_temperature")
+    entry = await _setup_evening_climate(hass, daytime, mode="fan_only")
+
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert _room(hass, entry).state == "occupied"
+    assert set_temp == []
+
+
 async def test_manual_climate_change_is_an_override(hass: HomeAssistant) -> None:
     entry = await _setup_with_climate(hass)
 

@@ -1,4 +1,4 @@
-"""Clims d'une pièce : action en pièce vide, rétablissement au retour."""
+"""Clims d'une pièce : action en pièce vide, rétablissement au retour, soirée."""
 
 from __future__ import annotations
 
@@ -6,10 +6,13 @@ from datetime import datetime
 from typing import Any
 
 from homeassistant.components.climate import (
+    ATTR_HVAC_MODE,
+    ATTR_HVAC_MODES,
     ATTR_MAX_TEMP,
     ATTR_MIN_TEMP,
     ATTR_PRESET_MODE,
     ATTR_PRESET_MODES,
+    ATTR_TARGET_TEMP_STEP,
     PRESET_NONE,
     SERVICE_SET_HVAC_MODE,
     SERVICE_SET_PRESET_MODE,
@@ -32,6 +35,7 @@ from .const import (
     KIND_CLIMATE,
     SELECT_CLIMATE_VACANT_DAY,
     SELECT_CLIMATE_VACANT_NIGHT,
+    SETTING_EVENING_CLIMATE_TEMP,
 )
 
 _ATTR_HVAC_MODE_SAVED = "hvac_mode"
@@ -66,8 +70,18 @@ class ClimateControl(RoomBase):
             for entity_id in self.groups[KIND_CLIMATE].entity_ids
         )
 
+    def _evening_climate(self) -> bool:
+        """Soirée avec une consigne réglée : la clim suit la présence."""
+        return (
+            self.is_evening
+            and not self.night_rules
+            and self.settings[SETTING_EVENING_CLIMATE_TEMP] > 0
+        )
+
     def _climate_action(self) -> str:
         """Action sur les clims en pièce vide, pour la période en cours."""
+        if self._evening_climate():
+            return CLIMATE_ACTION_OFF  # rallumée au retour : rien à garder en marche
         key = SELECT_CLIMATE_VACANT_NIGHT if self.night_rules else SELECT_CLIMATE_VACANT_DAY
         return self.climate_actions[key]
 
@@ -134,17 +148,22 @@ class ClimateControl(RoomBase):
         if not group.entity_ids or not self.occupied_or_presumed:
             return
         group.cancel_off_timer()
+        if not self._restore_climate(group):
+            self._start_evening_climate(group)
+
+    def _restore_climate(self, group: ActuatorGroup) -> bool:
+        """Rétablit l'état d'avant l'action en pièce vide ; faux si rien à rétablir."""
         saved, action, saved_at = (
             self._climate_saved,
             self._climate_saved_action,
             self._climate_saved_at,
         )
         if saved is None or saved_at is None:
-            return
+            return False
         self._clear_climate_saved()
         elapsed = (dt_util.utcnow() - saved_at).total_seconds()
         if not group.active or elapsed > CLIMATE_RESTORE_WINDOW:
-            return
+            return False
         context = self._new_context()
         for entity_id, previous in saved.items():
             if action == CLIMATE_ACTION_OFF:
@@ -163,6 +182,35 @@ class ClimateControl(RoomBase):
                     temperature=previous[ATTR_TEMPERATURE],
                 )
         self._log("climate_restored")
+        return True
+
+    def _start_evening_climate(self, group: ActuatorGroup) -> None:
+        """Soirée, pièce occupée : les clims arrêtées partent en froid à la consigne."""
+        if not group.active or not self.occupied or not self._evening_climate():
+            return
+        wanted = self.settings[SETTING_EVENING_CLIMATE_TEMP]
+        context = self._new_context()
+        started = False
+        for entity_id in group.entity_ids:
+            state = self.hass.states.get(entity_id)
+            # Seule une clim arrêtée est lancée : un autre mode a été choisi exprès.
+            if state is None or state.state != HVACMode.OFF:
+                continue
+            attrs = state.attributes
+            if HVACMode.COOL not in (attrs.get(ATTR_HVAC_MODES) or []):
+                continue
+            step = attrs.get(ATTR_TARGET_TEMP_STEP) or 0.5
+            target = round(wanted / step) * step
+            low = attrs.get(ATTR_MIN_TEMP, target)
+            high = attrs.get(ATTR_MAX_TEMP, target)
+            self._service(
+                "climate", SERVICE_SET_TEMPERATURE, [entity_id], context,
+                **{ATTR_HVAC_MODE: HVACMode.COOL},
+                temperature=min(max(target, low), high),
+            )
+            started = True
+        if started:
+            self._log("climate_on_evening", temperature=wanted)
 
     def _clear_climate_saved(self) -> None:
         self._climate_saved = None

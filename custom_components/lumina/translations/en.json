@@ -30,7 +30,7 @@
           "lights": "Turned on on arrival when the room is dark.",
           "illuminance_sensor": "Without a sensor, Lumina follows the sun: lights on shortly before sunset, off shortly after sunrise.",
           "fans": "Turned on on arrival when the temperature exceeds the threshold.",
-          "climates": "Lumina never turns them on. Empty room: off, eco or a raised setpoint as configured, then back to the previous state when someone returns.",
+          "climates": "Lumina only turns them on in the evening, if a setpoint is set. Empty room: off, eco or a raised setpoint as configured, then back to the previous state when someone returns.",
           "temperature_sensor": "Without a sensor, fans follow presence only.",
           "presence_still_sensors": "Radar (mmWave: Aqara FP2…) among the presence sensors. While one of them responds, a room it sees empty really is empty: Lumina no longer presumes a hidden sleeper, and the sleep entity only puts the room to sleep if it sees someone. Leave empty for a plain PIR.",
           "presence_hold": "TV, speaker…: while one of these entities is active, the room stays occupied even if the sensors no longer detect anyone.",
@@ -74,7 +74,7 @@
           "lights": "Turned on on arrival when the room is dark.",
           "illuminance_sensor": "Without a sensor, Lumina follows the sun: lights on shortly before sunset, off shortly after sunrise.",
           "fans": "Turned on on arrival when the temperature exceeds the threshold.",
-          "climates": "Lumina never turns them on. Empty room: off, eco or a raised setpoint as configured, then back to the previous state when someone returns.",
+          "climates": "Lumina only turns them on in the evening, if a setpoint is set. Empty room: off, eco or a raised setpoint as configured, then back to the previous state when someone returns.",
           "temperature_sensor": "Without a sensor, fans follow presence only.",
           "presence_still_sensors": "Radar (mmWave: Aqara FP2…) among the presence sensors. While one of them responds, a room it sees empty really is empty: Lumina no longer presumes a hidden sleeper, and the sleep entity only puts the room to sleep if it sees someone. Leave empty for a plain PIR.",
           "presence_hold": "TV, speaker…: while one of these entities is active, the room stays occupied even if the sensors no longer detect anyone.",
@@ -197,6 +197,9 @@
       },
       "climate_vacant_delay": {
         "name": "Delay before AC action"
+      },
+      "evening_climate_temperature": {
+        "name": "AC setpoint (evening)"
       },
       "fan_mix_speed": {
         "name": "Air circulation speed"

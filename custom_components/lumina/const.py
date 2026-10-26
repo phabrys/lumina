@@ -57,9 +57,11 @@ SETTING_FAN_MIX_SPEED: Final = "fan_mix_speed"
 SETTING_SUNSET_ADVANCE: Final = "sunset_advance"
 SETTING_SUNRISE_DELAY: Final = "sunrise_delay"
 
-# Réglages propres à la soirée : lumières seulement, le reste suit le jour
+# Réglages propres à la soirée : lumières et clim, le reste suit le jour
 SETTING_EVENING_BRIGHTNESS: Final = "evening_brightness"
 SETTING_EVENING_COLOR_TEMP: Final = "evening_color_temp"
+# Consigne de la clim allumée en soirée quand la pièce est occupée (0 = jamais)
+SETTING_EVENING_CLIMATE_TEMP: Final = "evening_climate_temperature"
 
 # Réglages propres à la nuit
 SETTING_NIGHT_BRIGHTNESS: Final = "night_brightness"
@@ -103,6 +105,8 @@ DEFAULT_SETTINGS: Final[dict[str, float]] = {
     SETTING_CLIMATE_VACANT_DELAY: 900,  # s
     # Ventilateurs en brassage pendant que la clim tourne
     SETTING_FAN_MIX_SPEED: 33,  # %
+    # Clim allumée en froid en soirée, pièce occupée (0 = désactivé)
+    SETTING_EVENING_CLIMATE_TEMP: 0,  # °C
     # Sans capteur : allumage permis avant le coucher, extinction après le
     # lever, l'intérieur étant plus sombre que dehors.
     SETTING_SUNSET_ADVANCE: 30,  # min

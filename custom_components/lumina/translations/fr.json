@@ -30,7 +30,7 @@
           "lights": "Allumées à l'arrivée si la pièce est sombre.",
           "illuminance_sensor": "Sans capteur, Lumina suit le soleil : allumage peu avant son coucher, extinction peu après son lever.",
           "fans": "Allumés à l'arrivée si la température dépasse le seuil.",
-          "climates": "Lumina ne les allume jamais. Pièce vide : arrêt, eco ou consigne relevée selon le réglage, puis retour à l'état d'avant quand quelqu'un revient.",
+          "climates": "Lumina ne les allume qu'en soirée, si une consigne est réglée. Pièce vide : arrêt, eco ou consigne relevée selon le réglage, puis retour à l'état d'avant quand quelqu'un revient.",
           "temperature_sensor": "Sans capteur, les ventilateurs suivent uniquement la présence.",
           "presence_still_sensors": "Radar (mmWave : Aqara FP2…) parmi les capteurs de présence. Quand l'un d'eux répond, une pièce qu'il voit vide l'est vraiment : Lumina ne présume plus de dormeur caché, et l'entité de sommeil n'endort la pièce que s'il voit quelqu'un. Laisse vide pour un simple PIR.",
           "presence_hold": "TV, enceinte… : tant qu'une de ces entités est active, la pièce reste occupée même si les détecteurs ne voient plus personne.",
@@ -74,7 +74,7 @@
           "lights": "Allumées à l'arrivée si la pièce est sombre.",
           "illuminance_sensor": "Sans capteur, Lumina suit le soleil : allumage peu avant son coucher, extinction peu après son lever.",
           "fans": "Allumés à l'arrivée si la température dépasse le seuil.",
-          "climates": "Lumina ne les allume jamais. Pièce vide : arrêt, eco ou consigne relevée selon le réglage, puis retour à l'état d'avant quand quelqu'un revient.",
+          "climates": "Lumina ne les allume qu'en soirée, si une consigne est réglée. Pièce vide : arrêt, eco ou consigne relevée selon le réglage, puis retour à l'état d'avant quand quelqu'un revient.",
           "temperature_sensor": "Sans capteur, les ventilateurs suivent uniquement la présence.",
           "presence_still_sensors": "Radar (mmWave : Aqara FP2…) parmi les capteurs de présence. Quand l'un d'eux répond, une pièce qu'il voit vide l'est vraiment : Lumina ne présume plus de dormeur caché, et l'entité de sommeil n'endort la pièce que s'il voit quelqu'un. Laisse vide pour un simple PIR.",
           "presence_hold": "TV, enceinte… : tant qu'une de ces entités est active, la pièce reste occupée même si les détecteurs ne voient plus personne.",
@@ -197,6 +197,9 @@
       },
       "climate_vacant_delay": {
         "name": "Délai avant action sur la clim"
+      },
+      "evening_climate_temperature": {
+        "name": "Consigne de la clim (soirée)"
       },
       "fan_mix_speed": {
         "name": "Vitesse de brassage"

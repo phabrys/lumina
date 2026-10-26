@@ -43,7 +43,7 @@ Le switch **Nuit maintenant** force le mode nuit tout de suite ; il se désactiv
 
 #### Soirée
 
-Entre le **Début de la soirée** et le début de la nuit, les lumières s'allument avec leur luminosité et leur teinte de soirée (70 % et 3000 K par défaut) : une lumière plus douce après le coucher du soleil, sans les autres effets de la nuit. Délais, seuils de température, clim et geste du coucher suivent les règles du jour : éteindre en sortant de la pièce ne l'endort pas. La nuit forcée et le sommeil l'emportent sur la soirée.
+Entre le **Début de la soirée** et le début de la nuit, les lumières s'allument avec leur luminosité et leur teinte de soirée (70 % et 3000 K par défaut) : une lumière plus douce après le coucher du soleil, sans les autres effets de la nuit. Délais, seuils de température, action sur la clim et geste du coucher suivent les règles du jour : éteindre en sortant de la pièce ne l'endort pas. Avec une **Consigne de la clim (soirée)**, la clim suit aussi la présence (voir [Clims](#clims)). La nuit forcée et le sommeil l'emportent sur la soirée.
 
 Par défaut, la soirée commence à 22:00, comme la nuit : elle n'existe pas tant qu'on n'avance pas son heure (19:00 par exemple). Une heure prise dans la plage de nuit la désactive aussi.
 
@@ -82,10 +82,11 @@ Elle se réveille quand on coupe le switch, quand l'entité de sommeil repasse �
 
 ### Clims
 
-Lumina n'allume jamais une clim : il agit seulement quand la pièce se vide, et seulement sur une clim qui refroidit ou chauffe (pas en simple ventilation).
+Lumina n'allume une clim qu'en soirée, si une consigne est réglée. Le reste du temps, il agit seulement quand la pièce se vide, et seulement sur une clim qui refroidit ou chauffe (pas en simple ventilation).
 
 - **Pièce vide** : après le délai réglé (15 min par défaut), la clim est éteinte, passée en `eco` ou sa consigne est relevée de 2 °C, selon le réglage du jour et celui de la nuit. La nuit, Lumina ne fait rien par défaut : un détecteur peut ne pas voir un dormeur.
 - **Retour dans la pièce** : si quelqu'un revient dans les 2 h, la clim retrouve l'état qu'elle avait (mode, preset ou consigne). Au-delà, elle reste telle quelle.
+- **Soirée** : avec une **Consigne de la clim (soirée)** (0 = désactivé, par défaut), une clim arrêtée part en froid à cette consigne dès que la pièce est occupée, y compris quand la soirée commence avec quelqu'un dans la pièce. Pièce vide, elle s'arrête après le délai réglé, quel que soit le réglage du jour, puis repart au retour. Une clim dans un autre mode (ventilation, déshumidification…) n'est pas touchée. Arrêtée à la main, elle ne repart qu'à la fin du contrôle manuel (30 min par défaut), ou au retour si la pièce s'est vidée entre-temps. En sommeil, la nuit ou en nuit forcée, Lumina ne l'allume pas : une clim qui tourne reste en marche, avec l'action de nuit en pièce vide.
 - **Ventilateurs pendant la clim** : quand une clim refroidit, les ventilateurs suivent la température (par défaut), passent en brassage à vitesse fixe pour répartir le froid, ou s'arrêtent.
 - **Contrôle manuel** : changer le mode, la consigne, le preset ou la ventilation de la clim suspend l'automatisme de la clim, comme pour les lumières.
 
@@ -143,6 +144,7 @@ Les lumières et ventilateurs peuvent aussi être des prises (`switch`), par exe
 | `switch.…_gestion_auto_de_la_clim` | Active ou suspend l'automatisme des clims |
 | `select.…_clim_en_piece_vide_jour` / `…_nuit` | Éteindre / Mode eco / Relever la consigne de 2 °C / Ne rien faire (défaut : éteindre le jour, rien la nuit) |
 | `number.…_delai_avant_action_sur_la_clim` | En secondes (défaut 900) |
+| `number.…_consigne_de_la_clim_soiree` | Clim allumée en froid en soirée, pièce occupée, en °C (défaut 0 = jamais) |
 | `select.…_ventilateurs_pendant_la_clim` | Selon la température / Brassage / Arrêtés |
 | `number.…_vitesse_de_brassage` | En % (défaut 33) |
 | `button.…_reprendre_l_automatisme` | Met fin au contrôle manuel tout de suite |
@@ -167,7 +169,7 @@ type: custom:lumina-card
 device: 0123456789abcdef0123456789abcdef   # appareil Lumina de la pièce
 ```
 
-La carte lit les attributs du capteur d'état (entités de la pièce, échéances `lights_off_at`, `fans_off_at`, `climate_vacant_at`…). Elle fonctionne avec Lumina 0.6.0 et plus ; la clim et ses réglages y apparaissent avec Lumina 0.8.0 et Lumina Card 0.2.0, les fins de nuit des jours de repos et de vacances avec Lumina 0.11.0 et Lumina Card 0.4.0, la soirée avec Lumina 0.13.0 et Lumina Card 0.5.0.
+La carte lit les attributs du capteur d'état (entités de la pièce, échéances `lights_off_at`, `fans_off_at`, `climate_vacant_at`…). Elle fonctionne avec Lumina 0.6.0 et plus ; la clim et ses réglages y apparaissent avec Lumina 0.8.0 et Lumina Card 0.2.0, les fins de nuit des jours de repos et de vacances avec Lumina 0.11.0 et Lumina Card 0.4.0, la soirée avec Lumina 0.13.0 et Lumina Card 0.5.0, la clim en soirée avec Lumina 0.16.0 et Lumina Card 0.10.0.
 
 ## Installation
 

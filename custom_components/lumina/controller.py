@@ -166,8 +166,9 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
     - ventilateurs : pas de marche/arrêt plus rapprochés que FAN_MIN_CYCLE ;
     - détecteur indisponible → l'occupation en cours est conservée ; tous
       muets → rien ne s'éteint, et la panne est signalée dans les Réparations ;
-    - clims : jamais allumées par Lumina ; pièce vide → action réglable
-      (arrêt, eco, consigne relevée), annulée au retour dans la pièce ;
+    - clims : pièce vide → action réglable (arrêt, eco, consigne relevée),
+      annulée au retour dans la pièce ; en soirée, avec une consigne réglée,
+      allumées en froid quand la pièce est occupée et arrêtées quand elle se vide ;
     - clim en marche → ventilateurs normaux, en brassage ou arrêtés ;
     - sommeil (switch, entité choisie, ou lumières éteintes à la main la
       nuit) : pas d'allumage automatique sauf veilleuse, gestes manuels
@@ -180,7 +181,8 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
       suit le type du jour (semaine, repos, vacances) quand ses sources sont
       choisies ;
     - la soirée (du début de soirée au début de la nuit) ne change que la
-      luminosité et la teinte des lumières : le reste suit les règles du jour.
+      luminosité et la teinte des lumières, et la clim si sa consigne est
+      réglée : le reste suit les règles du jour.
     """
 
     def __init__(

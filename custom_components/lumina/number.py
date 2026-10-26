@@ -30,6 +30,7 @@ from .const import (
     SETTING_DAY_COLOR_TEMP,
     SETTING_DAYLIGHT_OFF_LUX,
     SETTING_EVENING_BRIGHTNESS,
+    SETTING_EVENING_CLIMATE_TEMP,
     SETTING_EVENING_COLOR_TEMP,
     SETTING_FAN_MIN_SPEED,
     SETTING_FAN_MIX_SPEED,
@@ -159,6 +160,10 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
     _number(
         SETTING_FAN_MIX_SPEED, 10, 100, 1, PERCENTAGE,
         slider=True, requires=_has_climates_and_fans,
+    ),
+    _number(
+        SETTING_EVENING_CLIMATE_TEMP, 0, 30, 0.5, UnitOfTemperature.CELSIUS,
+        requires=_has_climates,
     ),
 )
 

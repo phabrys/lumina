@@ -99,6 +99,9 @@
       "climate_vacant_delay": {
         "default": "mdi:timer-sand"
       },
+      "evening_climate_temperature": {
+        "default": "mdi:snowflake-thermometer"
+      },
       "fan_mix_speed": {
         "default": "mdi:fan-speed-1"
       },
