@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.0 — 2026-10-25
+
+- Nouvelle période **soirée**, entre la nouvelle heure **Début de la soirée** et le début de la nuit. Elle ne change que les lumières : elles s'allument avec la **Luminosité des lumières (soirée)** (70 % par défaut) et la **Teinte des lumières (soirée)** (3000 K par défaut). Délais, seuils de température, clim et geste du coucher suivent les règles du jour : éteindre à la main en soirée n'endort pas la pièce. La nuit forcée et le sommeil l'emportent sur la soirée.
+- Par défaut, la soirée commence à 22:00, comme la nuit : sans changer cette heure, rien ne change. Une heure prise dans la plage de nuit désactive aussi la soirée.
+- Capteur d'état : l'attribut `period` peut valoir `evening`. Le Journal note « passe en mode soirée » et donne « soirée » comme raison des décisions.
+
 ## 0.12.0 — 2026-10-25
 
 Corrections et réglages tirés des nuits du 23 au 25 octobre.

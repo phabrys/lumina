@@ -54,6 +54,10 @@ SETTING_VACANCY_CONFIRM: Final = "vacancy_confirmation"
 SETTING_CLIMATE_VACANT_DELAY: Final = "climate_vacant_delay"
 SETTING_FAN_MIX_SPEED: Final = "fan_mix_speed"
 
+# Réglages propres à la soirée : lumières seulement, le reste suit le jour
+SETTING_EVENING_BRIGHTNESS: Final = "evening_brightness"
+SETTING_EVENING_COLOR_TEMP: Final = "evening_color_temp"
+
 # Réglages propres à la nuit
 SETTING_NIGHT_BRIGHTNESS: Final = "night_brightness"
 SETTING_NIGHT_LIGHT_OFF_DELAY: Final = "night_light_off_delay"
@@ -69,6 +73,7 @@ DEFAULT_SETTINGS: Final[dict[str, float]] = {
     SETTING_TEMP_THRESHOLD: 27.0,  # °C
     SETTING_OVERRIDE_DURATION: 30,  # min
     SETTING_DAY_BRIGHTNESS: 100,  # %
+    SETTING_EVENING_BRIGHTNESS: 70,  # %
     SETTING_NIGHT_BRIGHTNESS: 30,  # % (0 = pas d'allumage automatique la nuit)
     SETTING_NIGHT_LIGHT_OFF_DELAY: 60,  # s
     # Long par défaut : un PIR ne détecte pas un dormeur immobile.
@@ -83,6 +88,7 @@ DEFAULT_SETTINGS: Final[dict[str, float]] = {
     SETTING_LIGHT_WARNING: 15,  # s
     # Teinte des lumières compatibles (0 = ne pas modifier)
     SETTING_DAY_COLOR_TEMP: 4000,  # K
+    SETTING_EVENING_COLOR_TEMP: 3000,  # K
     SETTING_NIGHT_COLOR_TEMP: 2700,  # K
     # Extinction quand la lumière naturelle suffit (0 = désactivé). À régler
     # au-dessus de ce que mesure le capteur avec les lampes allumées.
@@ -134,6 +140,8 @@ WARNING_MIN_BRIGHTNESS: Final = 3
 
 # Plage de nuit (entités time, restaurées au redémarrage)
 TIME_NIGHT_START: Final = "night_start"
+# Soirée : du début de soirée au début de la nuit (même heure : pas de soirée)
+TIME_EVENING_START: Final = "evening_start"
 TIME_NIGHT_END: Final = "night_end"
 # Fin de nuit un jour de repos (week-end, férié) ou de vacances
 TIME_NIGHT_END_DAY_OFF: Final = "night_end_day_off"
@@ -143,6 +151,7 @@ NIGHT_END_TIMES: Final = frozenset(
 )
 
 DEFAULT_TIMES: Final[dict[str, time]] = {
+    TIME_EVENING_START: time(22, 0),  # comme le début de la nuit : pas de soirée
     TIME_NIGHT_START: time(22, 0),
     TIME_NIGHT_END: time(7, 0),
     TIME_NIGHT_END_DAY_OFF: time(8, 0),
@@ -160,6 +169,7 @@ NIGHT_END_BY_DAY: Final[dict[str, str]] = {
 }
 
 PERIOD_DAY: Final = "day"
+PERIOD_EVENING: Final = "evening"
 PERIOD_NIGHT: Final = "night"
 
 # Origine du sommeil : switch, entité choisie, ou lumières éteintes la nuit

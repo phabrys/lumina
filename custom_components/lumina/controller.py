@@ -85,6 +85,7 @@ from .const import (
     NIGHT_END_TIMES,
     OVERRIDE_DEBOUNCE,
     PERIOD_DAY,
+    PERIOD_EVENING,
     PERIOD_NIGHT,
     PRESENCE_ISSUE_DELAY,
     ROOM_OCCUPIED,
@@ -94,6 +95,8 @@ from .const import (
     SETTING_CLIMATE_VACANT_DELAY,
     SETTING_DAY_BRIGHTNESS,
     SETTING_DAY_COLOR_TEMP,
+    SETTING_EVENING_BRIGHTNESS,
+    SETTING_EVENING_COLOR_TEMP,
     SETTING_FAN_MIN_SPEED,
     SETTING_FAN_MIX_SPEED,
     SETTING_FAN_OFF_DELAY,
@@ -116,6 +119,7 @@ from .const import (
     SUN_BELOW_HORIZON,
     SUN_ENTITY,
     TEMP_HYSTERESIS,
+    TIME_EVENING_START,
     TIME_NIGHT_START,
     WAKE_VACANT,
     WARNING_BRIGHTNESS,
@@ -133,6 +137,15 @@ _OVERRIDE_ATTRIBUTES: dict[str, tuple[str, ...]] = {
     KIND_FANS: (ATTR_PERCENTAGE,),
     KIND_CLIMATE: (ATTR_TEMPERATURE, ATTR_PRESET_MODE, ATTR_FAN_MODE),
 }
+
+
+def _within(start: time, end: time, moment: time) -> bool:
+    """`moment` dans la plage [start, end[, éventuellement à cheval sur minuit."""
+    if start == end:
+        return False
+    if start < end:
+        return start <= moment < end
+    return moment >= start or moment < end
 
 
 class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
@@ -165,7 +178,9 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
     - capteur de luminosité muet → on se fie à la position du soleil ;
     - la nuit (plage horaire ou forcée), réglages dédiés ; la fin de nuit
       suit le type du jour (semaine, repos, vacances) quand ses sources sont
-      choisies.
+      choisies ;
+    - la soirée (du début de soirée au début de la nuit) ne change que la
+      luminosité et la teinte des lumières : le reste suit les règles du jour.
     """
 
     def __init__(
@@ -409,7 +424,7 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
         previous = self.period
         self.period = self._effective_period()
         if reevaluate and self.period != previous:
-            self._log("night_forced" if forced else "day_restored")
+            self._log("night_forced" if forced else f"{self.period}_restored")
         self._refresh(reevaluate)
 
     @callback
@@ -573,18 +588,21 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
 
 
     def _compute_natural_period(self) -> str:
-        """Jour ou nuit selon la plage réglée (début = fin : pas de nuit)."""
+        """Jour, soirée ou nuit selon les plages réglées.
+
+        Début = fin de nuit : pas de nuit. Début de soirée = début de nuit, ou
+        pris dans la nuit : pas de soirée.
+        """
         local = dt_util.now()
         start = self.times[TIME_NIGHT_START]
         end = self.night_end_on(local.date())
+        evening = self.times[TIME_EVENING_START]
         now = local.time().replace(tzinfo=None)
-        if start == end:
-            night = False
-        elif start < end:
-            night = start <= now < end
-        else:  # plage à cheval sur minuit
-            night = now >= start or now < end
-        return PERIOD_NIGHT if night else PERIOD_DAY
+        if _within(start, end, now):
+            return PERIOD_NIGHT
+        if not _within(start, end, evening) and _within(evening, start, now):
+            return PERIOD_EVENING
+        return PERIOD_DAY
 
     def _effective_period(self) -> str:
         return PERIOD_NIGHT if self.forced_night else self._natural_period
@@ -703,10 +721,7 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
 
     def _reason(self) -> str:
         """Contexte lisible des décisions, pour le journal."""
-        if self.sleeping:
-            period = "reason_sleep"
-        else:
-            period = "reason_night" if self.is_night else "reason_day"
+        period = "reason_sleep" if self.sleeping else f"reason_{self.period}"
         parts = [self._message(period)]
         lux = self._numeric_state(self.illuminance)
         if lux is not None:
@@ -740,7 +755,9 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
         brightness = (
             self.settings[SETTING_SLEEP_BRIGHTNESS]
             if self.sleeping
-            else self._setting(SETTING_DAY_BRIGHTNESS, SETTING_NIGHT_BRIGHTNESS)
+            else self._light_setting(
+                SETTING_DAY_BRIGHTNESS, SETTING_EVENING_BRIGHTNESS, SETTING_NIGHT_BRIGHTNESS
+            )
         )
         if was_warning and self._any_on(group):
             # Quelqu'un est revenu pendant l'avertissement : on rétablit. En
@@ -768,7 +785,9 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
         brightness: float,
         entity_ids: list[str] | None = None,
     ) -> None:
-        color_temp = self._setting(SETTING_DAY_COLOR_TEMP, SETTING_NIGHT_COLOR_TEMP)
+        color_temp = self._light_setting(
+            SETTING_DAY_COLOR_TEMP, SETTING_EVENING_COLOR_TEMP, SETTING_NIGHT_COLOR_TEMP
+        )
         context = self._new_context()
         lights_ct: list[str] = []
         lights_plain: list[str] = []
@@ -1200,7 +1219,7 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
         changed = period != self.period
         if changed:
             self.period = period
-            self._log("night_started" if self.is_night else "day_started")
+            self._log(f"{self.period}_started")
         if woke or changed:
             self._reevaluate_with_vacancy_credit()
 

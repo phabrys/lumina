@@ -32,6 +32,7 @@ from .const import (
     LOG_THROTTLE,
     MODE_ALL,
     NIGHT_END_BY_DAY,
+    PERIOD_EVENING,
     PERIOD_NIGHT,
 )
 from .messages import message
@@ -184,6 +185,10 @@ class RoomBase:
     def is_night(self) -> bool:
         return self.period == PERIOD_NIGHT
 
+    @property
+    def is_evening(self) -> bool:
+        return self.period == PERIOD_EVENING
+
     def night_end_on(self, day: date) -> time:
         """Heure de fin de nuit le matin du jour `day`, selon son type."""
         return self.times[NIGHT_END_BY_DAY[self.day_kinds.get(day, DAY_WORK)]]
@@ -212,6 +217,12 @@ class RoomBase:
 
     def _setting(self, day_key: str, night_key: str) -> float:
         return self.settings[night_key if self.night_rules else day_key]
+
+    def _light_setting(self, day_key: str, evening_key: str, night_key: str) -> float:
+        """Réglage des lumières : la soirée n'a d'effet que hors nuit et sommeil."""
+        if not self.night_rules and self.is_evening:
+            return self.settings[evening_key]
+        return self._setting(day_key, night_key)
 
     # --- États -------------------------------------------------------------
 

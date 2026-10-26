@@ -150,6 +150,9 @@
       "day_brightness": {
         "name": "Luminosité des lumières (jour)"
       },
+      "evening_brightness": {
+        "name": "Luminosité des lumières (soirée)"
+      },
       "night_brightness": {
         "name": "Luminosité des lumières (nuit)"
       },
@@ -173,6 +176,9 @@
       },
       "day_color_temp": {
         "name": "Teinte des lumières (jour)"
+      },
+      "evening_color_temp": {
+        "name": "Teinte des lumières (soirée)"
       },
       "night_color_temp": {
         "name": "Teinte des lumières (nuit)"
@@ -222,6 +228,7 @@
             "name": "Période",
             "state": {
               "day": "Jour",
+              "evening": "Soirée",
               "night": "Nuit"
             }
           },
@@ -376,6 +383,9 @@
       }
     },
     "time": {
+      "evening_start": {
+        "name": "Début de la soirée"
+      },
       "night_start": {
         "name": "Début de la nuit"
       },

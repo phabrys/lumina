@@ -14,6 +14,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
     "fr": {
         # Raison des décisions
         "reason_day": "jour",
+        "reason_evening": "soirée",
         "reason_night": "nuit",
         "reason_sleep": "sommeil",
         "reason_lux_unavailable": "luminosité indisponible",
@@ -25,6 +26,8 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "day_restored": "repasse en mode jour",
         "night_started": "passe en mode nuit",
         "day_started": "passe en mode jour",
+        "evening_started": "passe en mode soirée",
+        "evening_restored": "repasse en mode soirée",
         # Sommeil
         "sleep_started_manual": "passe en sommeil jusqu'à {time}",
         "sleep_started_entity": "passe en sommeil jusqu'à {time} (entité de sommeil)",
@@ -81,6 +84,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
     },
     "en": {
         "reason_day": "day",
+        "reason_evening": "evening",
         "reason_night": "night",
         "reason_sleep": "sleep",
         "reason_lux_unavailable": "illuminance unavailable",
@@ -91,6 +95,8 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "day_restored": "switches back to day mode",
         "night_started": "switches to night mode",
         "day_started": "switches to day mode",
+        "evening_started": "switches to evening mode",
+        "evening_restored": "switches back to evening mode",
         "sleep_started_manual": "goes to sleep until {time}",
         "sleep_started_entity": "goes to sleep until {time} (sleep entity)",
         "sleep_started_lights_off": "goes to sleep until {time} (lights turned off by hand)",

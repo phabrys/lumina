@@ -32,6 +32,7 @@ from .common import (
     _room,
     _setup,
     _setup_after_restart,
+    _switch,
 )
 from custom_components.lumina.const import (
     CONF_CLIMATES,
@@ -448,6 +449,110 @@ async def test_forced_night_switch(hass: HomeAssistant) -> None:
     hass.states.async_set(PIR, "on")
     await hass.async_block_till_done()
     assert turn_on[0].data["brightness_pct"] == 30
+
+
+# ----------------------------------------------------------------------
+# Soirée
+# ----------------------------------------------------------------------
+
+EVENING = "2026-10-18T21:00:00-07:00"
+
+
+async def _set_time(hass: HomeAssistant, entry, key: str, value: str) -> None:
+    await hass.services.async_call(
+        "time",
+        "set_value",
+        {"entity_id": _eid(hass, entry, "time", key), "time": value},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+
+async def test_no_evening_by_default(hass: HomeAssistant, daytime) -> None:
+    daytime.move_to(EVENING)
+    hass.states.async_set(PIR, "off")
+    entry = await _setup(hass)
+    assert _room(hass, entry).attributes["period"] == "day"
+
+
+async def test_evening_softens_lights(hass: HomeAssistant, daytime) -> None:
+    daytime.move_to(EVENING)
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    entries = async_capture_events(hass, "logbook_entry")
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LUX, "10")
+    hass.states.async_set(LIGHT, "off", {"supported_color_modes": ["color_temp"]})
+    entry = await _setup(hass)
+
+    await _set_time(hass, entry, "evening_start", "19:00:00")
+    assert _room(hass, entry).attributes["period"] == "evening"
+
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert turn_on[0].data["brightness_pct"] == 70
+    assert turn_on[0].data["color_temp_kelvin"] == 3000
+    assert "(soirée, 10 lx)" in entries[-1].data["message"]
+
+
+async def test_evening_ends_with_night(hass: HomeAssistant, daytime) -> None:
+    daytime.move_to("2026-10-18T21:59:30-07:00")
+    entries = async_capture_events(hass, "logbook_entry")
+    hass.states.async_set(PIR, "off")
+    entry = await _setup(hass)
+    await _set_time(hass, entry, "evening_start", "19:00:00")
+    assert _room(hass, entry).attributes["period"] == "evening"
+
+    daytime.move_to("2026-10-18T22:00:00-07:00")
+    await _later(hass, seconds=0)
+    assert _room(hass, entry).attributes["period"] == "night"
+    assert entries[-1].data["message"] == "passe en mode nuit"
+
+
+async def test_evening_keeps_day_rules(hass: HomeAssistant, daytime) -> None:
+    """Éteindre à la main en soirée n'endort pas la pièce."""
+    daytime.move_to(EVENING)
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LUX, "5")
+    hass.states.async_set(LIGHT, "on")
+    entry = await _setup(hass)
+    await _set_time(hass, entry, "evening_start", "19:00:00")
+
+    hass.states.async_set(LIGHT, "off")
+    await hass.async_block_till_done()
+    assert _room(hass, entry).state == "override"
+
+
+async def test_forced_night_wins_over_evening(hass: HomeAssistant, daytime) -> None:
+    daytime.move_to(EVENING)
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    entries = async_capture_events(hass, "logbook_entry")
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LUX, "10")
+    hass.states.async_set(LIGHT, "off")
+    entry = await _setup(hass)
+    await _set_time(hass, entry, "evening_start", "19:00:00")
+
+    await _switch(hass, entry, "forced_night")
+    assert _room(hass, entry).attributes["period"] == "night"
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert turn_on[0].data["brightness_pct"] == 30
+
+    await _switch(hass, entry, "forced_night", on=False)
+    assert _room(hass, entry).attributes["period"] == "evening"
+    assert "repasse en mode soirée" in [e.data["message"] for e in entries]
+
+
+async def test_evening_start_inside_night_disables_evening(
+    hass: HomeAssistant, daytime
+) -> None:
+    daytime.move_to(EVENING)
+    hass.states.async_set(PIR, "off")
+    entry = await _setup(hass)
+
+    # 23:00 tombe dans la nuit (22:00 → 07:00) : pas de soirée de 23 h à 22 h.
+    await _set_time(hass, entry, "evening_start", "23:00:00")
+    assert _room(hass, entry).attributes["period"] == "day"
 
 
 # ----------------------------------------------------------------------

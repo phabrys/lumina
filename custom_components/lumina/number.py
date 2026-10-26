@@ -29,6 +29,8 @@ from .const import (
     SETTING_DAY_BRIGHTNESS,
     SETTING_DAY_COLOR_TEMP,
     SETTING_DAYLIGHT_OFF_LUX,
+    SETTING_EVENING_BRIGHTNESS,
+    SETTING_EVENING_COLOR_TEMP,
     SETTING_FAN_MIN_SPEED,
     SETTING_FAN_MIX_SPEED,
     SETTING_FAN_OFF_DELAY,
@@ -115,6 +117,10 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
     ),
     _number(SETTING_OVERRIDE_DURATION, 0, 240, 5, UnitOfTime.MINUTES),
     _number(SETTING_DAY_BRIGHTNESS, 1, 100, 1, PERCENTAGE, slider=True, requires=_has_lights),
+    # --- Soirée ---
+    _number(
+        SETTING_EVENING_BRIGHTNESS, 1, 100, 1, PERCENTAGE, slider=True, requires=_has_lights
+    ),
     # --- Nuit ---
     _number(SETTING_NIGHT_BRIGHTNESS, 0, 100, 1, PERCENTAGE, slider=True, requires=_has_lights),
     _number(SETTING_NIGHT_LIGHT_OFF_DELAY, 0, 3600, 10, UnitOfTime.SECONDS, requires=_has_lights),
@@ -135,6 +141,10 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
     ),
     _number(SETTING_LIGHT_WARNING, 0, 120, 5, UnitOfTime.SECONDS, requires=_has_lights),
     _number(SETTING_DAY_COLOR_TEMP, 0, 6500, 100, UnitOfTemperature.KELVIN, requires=_has_lights),
+    _number(
+        SETTING_EVENING_COLOR_TEMP, 0, 6500, 100, UnitOfTemperature.KELVIN,
+        requires=_has_lights,
+    ),
     _number(SETTING_NIGHT_COLOR_TEMP, 0, 6500, 100, UnitOfTemperature.KELVIN, requires=_has_lights),
     # --- Clim ---
     _number(SETTING_CLIMATE_VACANT_DELAY, 0, 7200, 60, UnitOfTime.SECONDS, requires=_has_climates),

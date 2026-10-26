@@ -51,6 +51,9 @@
       "day_brightness": {
         "default": "mdi:brightness-6"
       },
+      "evening_brightness": {
+        "default": "mdi:weather-sunset"
+      },
       "night_brightness": {
         "default": "mdi:weather-night"
       },
@@ -74,6 +77,9 @@
       },
       "day_color_temp": {
         "default": "mdi:white-balance-sunny"
+      },
+      "evening_color_temp": {
+        "default": "mdi:lamp"
       },
       "night_color_temp": {
         "default": "mdi:candle"
@@ -108,6 +114,9 @@
       }
     },
     "time": {
+      "evening_start": {
+        "default": "mdi:weather-sunset"
+      },
       "night_start": {
         "default": "mdi:weather-sunset-down"
       },

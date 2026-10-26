@@ -150,6 +150,9 @@
       "day_brightness": {
         "name": "Lights brightness (day)"
       },
+      "evening_brightness": {
+        "name": "Lights brightness (evening)"
+      },
       "night_brightness": {
         "name": "Lights brightness (night)"
       },
@@ -173,6 +176,9 @@
       },
       "day_color_temp": {
         "name": "Lights color temperature (day)"
+      },
+      "evening_color_temp": {
+        "name": "Lights color temperature (evening)"
       },
       "night_color_temp": {
         "name": "Lights color temperature (night)"
@@ -222,6 +228,7 @@
             "name": "Period",
             "state": {
               "day": "Day",
+              "evening": "Evening",
               "night": "Night"
             }
           },
@@ -376,6 +383,9 @@
       }
     },
     "time": {
+      "evening_start": {
+        "name": "Evening start"
+      },
       "night_start": {
         "name": "Night start"
       },

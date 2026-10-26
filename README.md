@@ -37,9 +37,15 @@ Chaque pièce a sa propre plage de nuit (22 h → 7 h par défaut) avec ses rég
 - **Délais d'extinction** propres à la nuit. Celui des ventilateurs est long par défaut (30 min), car un détecteur PIR ne voit pas une personne endormie immobile.
 - **Seuil de température** de nuit (26 °C par défaut).
 
-Mettre la même heure en début et en fin de nuit désactive le mode nuit pour la pièce. La période en cours (jour/nuit) apparaît en attribut du capteur d'état.
+Mettre la même heure en début et en fin de nuit désactive le mode nuit pour la pièce. La période en cours (jour/soirée/nuit) apparaît en attribut du capteur d'état.
 
 Le switch **Nuit maintenant** force le mode nuit tout de suite ; il se désactive seul à la prochaine heure de fin de nuit, même si la pièce n'a pas de plage de nuit.
+
+#### Soirée
+
+Entre le **Début de la soirée** et le début de la nuit, les lumières s'allument avec leur luminosité et leur teinte de soirée (70 % et 3000 K par défaut) : une lumière plus douce après le coucher du soleil, sans les autres effets de la nuit. Délais, seuils de température, clim et geste du coucher suivent les règles du jour : éteindre en sortant de la pièce ne l'endort pas. La nuit forcée et le sommeil l'emportent sur la soirée.
+
+Par défaut, la soirée commence à 22:00, comme la nuit : elle n'existe pas tant qu'on n'avance pas son heure (19:00 par exemple). Une heure prise dans la plage de nuit la désactive aussi.
 
 #### Fin de nuit selon le jour
 
@@ -91,7 +97,7 @@ Une clim gérée par Lumina ne peut pas servir de maintien de présence, sinon l
 - **Température ressentie** : avec un capteur d'humidité, les ventilateurs suivent l'indice de chaleur (NOAA) plutôt que la température mesurée. 27 °C à 85 % d'humidité se ressentent comme 30 °C.
 - **Vitesse progressive** : les ventilateurs démarrent à la vitesse minimale (33 %) au seuil, puis montent jusqu'à 100 % sur l'écart réglé (3 °C). Une vitesse minimale à 0 revient au simple marche/arrêt. Changer la vitesse à la main compte comme une reprise manuelle.
 - **Avertissement avant extinction** : les lumières baissent pendant 15 s avant de s'éteindre, à 20 % ou à la moitié de leur luminosité si elle est faible ; une veilleuse presque éteinte s'éteint directement. Un mouvement pendant ce temps rend à chaque lumière la luminosité qu'elle avait avant. Une lumière sans variateur s'éteint directement.
-- **Teinte** : 4000 K le jour, 2700 K la nuit, pour les lumières à blanc réglable (0 = ne pas modifier).
+- **Teinte** : 4000 K le jour, 3000 K en soirée, 2700 K la nuit, pour les lumières à blanc réglable (0 = ne pas modifier).
 - **Journal** : chaque décision apparaît dans le Journal avec sa raison, dans la langue de Home Assistant (français ou anglais), par exemple « allume les lumières à 30 % (nuit, 12 lx) ». Les ajustements de vitesse fréquents sont regroupés (une entrée toutes les 10 min au plus).
 - **Lumière du jour** : avec un seuil d'extinction réglé, les lumières s'éteignent quand le capteur mesure au moins cette valeur pendant 5 min. Règle-le **au-dessus** de ce que mesure le capteur lampes allumées, sinon la lampe s'éteindrait d'elle-même. Après une telle extinction, l'allumage automatique ne reprend qu'après 10 min sous le seuil d'allumage, ou quand la pièce se vide.
 - **Plusieurs lumières ou ventilateurs** : par défaut, Lumina allume toutes les lumières (ou tous les ventilateurs) éteints de la pièce ; le réglage « Si une lumière est déjà allumée » (« Si un ventilateur tourne déjà ») passé à « Ne rien toucher » respecte un appareil déjà allumé.
@@ -112,6 +118,8 @@ Les lumières et ventilateurs peuvent aussi être des prises (`switch`), par exe
 | `number.…_duree_du_controle_manuel` | En minutes (défaut 30, 0 pour désactiver) |
 | `number.…_confirmation_d_absence` | En secondes (défaut 30, 0 = immédiat) |
 | `number.…_luminosite_des_lumieres_jour` | En % (défaut 100) |
+| `time.…_debut_de_la_soiree` | Début de la soirée, jusqu'au début de la nuit (défaut 22:00 = pas de soirée) |
+| `number.…_luminosite_des_lumieres_soiree` | En % (défaut 70) |
 | `time.…_debut_de_la_nuit` / `time.…_fin_de_la_nuit` | Plage de nuit (défaut 22:00 → 07:00) |
 | `time.…_fin_de_la_nuit_repos` / `time.…_fin_de_la_nuit_vacances` | Fin de nuit un jour de repos ou de vacances (défaut 08:00), avec Workday ou un calendrier de vacances |
 | `number.…_luminosite_des_lumieres_nuit` | En % (défaut 30, 0 = pas d'allumage la nuit) |
@@ -123,7 +131,7 @@ Les lumières et ventilateurs peuvent aussi être des prises (`switch`), par exe
 | `number.…_vitesse_minimale_des_ventilateurs` | En % (défaut 33, 0 = marche/arrêt) |
 | `number.…_ecart_pour_la_vitesse_maximale` | En °C (défaut 3) |
 | `number.…_avertissement_avant_extinction` | En secondes (défaut 15, 0 = extinction directe) |
-| `number.…_teinte_des_lumieres_jour` / `…_nuit` | En K (défaut 4000 / 2700, 0 = ne pas modifier) |
+| `number.…_teinte_des_lumieres_jour` / `…_soiree` / `…_nuit` | En K (défaut 4000 / 3000 / 2700, 0 = ne pas modifier) |
 | `number.…_extinction_a_la_lumiere_du_jour` | En lx (défaut 0 = désactivé) |
 | `select.…_si_une_lumiere_est_deja_allumee` | Allumer les autres (défaut) / Ne rien toucher |
 | `select.…_si_un_ventilateur_tourne_deja` | Allumer les autres (défaut) / Ne rien toucher |
@@ -157,7 +165,7 @@ type: custom:lumina-card
 device: 0123456789abcdef0123456789abcdef   # appareil Lumina de la pièce
 ```
 
-La carte lit les attributs du capteur d'état (entités de la pièce, échéances `lights_off_at`, `fans_off_at`, `climate_vacant_at`…). Elle fonctionne avec Lumina 0.6.0 et plus ; la clim et ses réglages y apparaissent avec Lumina 0.8.0 et Lumina Card 0.2.0, les fins de nuit des jours de repos et de vacances avec Lumina 0.11.0 et Lumina Card 0.4.0.
+La carte lit les attributs du capteur d'état (entités de la pièce, échéances `lights_off_at`, `fans_off_at`, `climate_vacant_at`…). Elle fonctionne avec Lumina 0.6.0 et plus ; la clim et ses réglages y apparaissent avec Lumina 0.8.0 et Lumina Card 0.2.0, les fins de nuit des jours de repos et de vacances avec Lumina 0.11.0 et Lumina Card 0.4.0, la soirée avec Lumina 0.13.0 et Lumina Card 0.5.0.
 
 ## Installation
 

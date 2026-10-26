@@ -1,4 +1,4 @@
-"""Plage de nuit de la pièce, exposée en entités time.
+"""Plages de soirée et de nuit de la pièce, exposées en entités time.
 
 Les fins de nuit des jours de repos et de vacances n'existent que si leur
 source (Workday, calendriers de vacances) est choisie dans Configurer.
@@ -18,6 +18,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from . import LuminaConfigEntry
 from .const import (
     DOMAIN,
+    TIME_EVENING_START,
     TIME_NIGHT_END,
     TIME_NIGHT_END_DAY_OFF,
     TIME_NIGHT_END_HOLIDAYS,
@@ -26,6 +27,11 @@ from .const import (
 from .entity import LuminaEntity
 
 TIMES: tuple[TimeEntityDescription, ...] = (
+    TimeEntityDescription(
+        key=TIME_EVENING_START,
+        translation_key=TIME_EVENING_START,
+        entity_category=EntityCategory.CONFIG,
+    ),
     TimeEntityDescription(
         key=TIME_NIGHT_START,
         translation_key=TIME_NIGHT_START,
@@ -73,7 +79,7 @@ async def async_setup_entry(
 
 
 class LuminaTime(LuminaEntity, TimeEntity, RestoreEntity):
-    """Début ou fin de la nuit, restauré après redémarrage."""
+    """Début de la soirée, début ou fin de la nuit, restauré après redémarrage."""
 
     def __init__(self, entry: LuminaConfigEntry, description: TimeEntityDescription) -> None:
         super().__init__(entry, description.key)
