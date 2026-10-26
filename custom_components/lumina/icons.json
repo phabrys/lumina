@@ -87,6 +87,12 @@
       "daylight_off_lux": {
         "default": "mdi:weather-sunny-alert"
       },
+      "sunset_advance": {
+        "default": "mdi:weather-sunset-down"
+      },
+      "sunrise_delay": {
+        "default": "mdi:weather-sunset-up"
+      },
       "vacancy_confirmation": {
         "default": "mdi:account-clock-outline"
       },

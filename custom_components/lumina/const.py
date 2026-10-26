@@ -53,6 +53,9 @@ SETTING_DAYLIGHT_OFF_LUX: Final = "daylight_off_lux"
 SETTING_VACANCY_CONFIRM: Final = "vacancy_confirmation"
 SETTING_CLIMATE_VACANT_DELAY: Final = "climate_vacant_delay"
 SETTING_FAN_MIX_SPEED: Final = "fan_mix_speed"
+# Sans capteur de luminosité : marges autour du coucher et du lever du soleil
+SETTING_SUNSET_ADVANCE: Final = "sunset_advance"
+SETTING_SUNRISE_DELAY: Final = "sunrise_delay"
 
 # Réglages propres à la soirée : lumières seulement, le reste suit le jour
 SETTING_EVENING_BRIGHTNESS: Final = "evening_brightness"
@@ -100,6 +103,10 @@ DEFAULT_SETTINGS: Final[dict[str, float]] = {
     SETTING_CLIMATE_VACANT_DELAY: 900,  # s
     # Ventilateurs en brassage pendant que la clim tourne
     SETTING_FAN_MIX_SPEED: 33,  # %
+    # Sans capteur : allumage permis avant le coucher, extinction après le
+    # lever, l'intérieur étant plus sombre que dehors.
+    SETTING_SUNSET_ADVANCE: 30,  # min
+    SETTING_SUNRISE_DELAY: 30,  # min
 }
 
 # Ventilateurs : durée minimale entre deux bascules dues à la température
@@ -112,10 +119,12 @@ OVERRIDE_DEBOUNCE: Final = 5  # s
 # sans que la confirmation passe pour un geste manuel
 CONFIRMATION_WINDOW: Final = 60  # s
 
-# Repli quand le capteur de luminosité ne répond pas
+# Soleil : remplace le capteur de luminosité absent ou muet
 SUN_ENTITY: Final = "sun.sun"
 SUN_BELOW_HORIZON: Final = "below_horizon"
 SUN_ABOVE_HORIZON: Final = "above_horizon"
+SUN_NEXT_RISING: Final = "next_rising"
+SUN_NEXT_SETTING: Final = "next_setting"
 
 # Lumière du jour : durée au-dessus du seuil avant extinction, et durée
 # sous le seuil d'allumage avant de réautoriser l'allumage automatique.

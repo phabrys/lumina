@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from homeassistant.const import SERVICE_TURN_OFF
 from homeassistant.core import CALLBACK_TYPE, callback
 from homeassistant.helpers.event import async_call_later
+from homeassistant.util import dt as dt_util
 
 from .base import RoomBase, cancel_timer
 from .const import (
@@ -15,8 +16,12 @@ from .const import (
     KIND_LIGHTS,
     SETTING_DAYLIGHT_OFF_LUX,
     SETTING_LUX_THRESHOLD,
+    SETTING_SUNRISE_DELAY,
+    SETTING_SUNSET_ADVANCE,
     SUN_ABOVE_HORIZON,
     SUN_ENTITY,
+    SUN_NEXT_RISING,
+    SUN_NEXT_SETTING,
 )
 
 
@@ -28,11 +33,26 @@ class DaylightControl(RoomBase):
         self.daylight_locked = False
         self._daylight_timer: CALLBACK_TYPE | None = None
         self._relock_timer: CALLBACK_TYPE | None = None
+        # Dernier avis du soleil (marges comprises), pour réagir à son changement
+        self._sun_was_up: bool | None = None
 
     def _sun_up(self) -> bool:
-        """Soleil levé ? Inconnu, il est supposé couché."""
+        """Assez de jour d'après le soleil, marges du matin et du soir comprises.
+
+        Inconnu, le soleil est supposé couché. Le lever du jour se déduit du
+        prochain, un jour plus tôt : l'écart d'un jour à l'autre est minime.
+        """
         sun = self.hass.states.get(SUN_ENTITY)
-        return sun is not None and sun.state == SUN_ABOVE_HORIZON
+        if sun is None or sun.state != SUN_ABOVE_HORIZON:
+            return False
+        now = dt_util.utcnow()
+        setting = _parse(sun.attributes.get(SUN_NEXT_SETTING))
+        advance = timedelta(minutes=self.settings[SETTING_SUNSET_ADVANCE])
+        if setting is not None and now >= setting - advance:
+            return False
+        rising = _parse(sun.attributes.get(SUN_NEXT_RISING))
+        delay = timedelta(minutes=self.settings[SETTING_SUNRISE_DELAY])
+        return rising is None or now >= rising - timedelta(days=1) + delay
 
     def _daylight_enough(self) -> bool:
         """La lumière naturelle suffit-elle à éteindre ?
@@ -59,7 +79,10 @@ class DaylightControl(RoomBase):
         # Verrou posé après une extinction : levé quand il refait sombre.
         if self.daylight_locked:
             if self._dark_again():
-                if self._relock_timer is None:
+                if self.illuminance is None:
+                    # Le soleil ne vacille pas : pas de délai de confirmation.
+                    self.daylight_locked = False
+                elif self._relock_timer is None:
                     self._relock_timer = async_call_later(
                         self.hass, DAYLIGHT_RELOCK_DELAY, self._unlock_daylight
                     )
@@ -76,7 +99,10 @@ class DaylightControl(RoomBase):
             cancel_timer(self._daylight_timer)
             self._daylight_timer = None
             return
-        if self._daylight_timer is None:
+        if self.illuminance is None:
+            # Marge du matin déjà écoulée : extinction sans attendre.
+            self._daylight_off(dt_util.utcnow())
+        elif self._daylight_timer is None:
             self._daylight_timer = async_call_later(
                 self.hass, DAYLIGHT_OFF_DELAY, self._daylight_off
             )
@@ -108,3 +134,10 @@ class DaylightControl(RoomBase):
         self._daylight_timer = None
         self._relock_timer = None
         self.daylight_locked = False
+
+
+def _parse(value: object) -> datetime | None:
+    """Heure du soleil lue dans ses attributs (texte ISO ou datetime)."""
+    if isinstance(value, datetime):
+        return value
+    return dt_util.parse_datetime(value) if isinstance(value, str) else None

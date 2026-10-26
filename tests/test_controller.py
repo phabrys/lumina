@@ -799,11 +799,55 @@ async def test_no_lux_sensor_follows_sun(
     assert len(turn_on) == expected_calls
 
 
-async def test_no_lux_sensor_sunrise_and_sunset(hass: HomeAssistant) -> None:
+def _sun(hass: HomeAssistant, state: str, *, rising: timedelta, setting: timedelta) -> None:
+    """Soleil avec ses prochains lever et coucher, comptés depuis maintenant."""
+    now = dt_util.utcnow()
+    hass.states.async_set(
+        "sun.sun",
+        state,
+        {"next_rising": (now + rising).isoformat(), "next_setting": (now + setting).isoformat()},
+    )
+
+
+async def _next_minute(hass: HomeAssistant, freezer, minutes: int) -> None:
+    freezer.tick(timedelta(minutes=minutes))
+    async_fire_time_changed(hass, dt_util.utcnow())
+    await hass.async_block_till_done()
+
+
+async def test_no_lux_sensor_turns_on_before_sunset(hass: HomeAssistant, daytime) -> None:
+    turn_on = async_mock_service(hass, "light", "turn_on")
+    _sun(hass, "above_horizon", rising=timedelta(hours=13), setting=timedelta(minutes=40))
+    hass.states.async_set(PIR, "off")
+    hass.states.async_set(LIGHT, "off")
+    entry = await _setup(hass, **{CONF_ILLUMINANCE: None})
+
+    # Coucher dans 40 min : encore assez de jour.
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert turn_on == []
+
+    # 30 min avant le coucher : la marge du soir allume sans attendre un mouvement.
+    await _next_minute(hass, daytime, 11)
+    assert _entities(turn_on) == [[LIGHT]]
+
+    # Marge réglée à 0 : rien ne s'allume avant le coucher lui-même.
+    hass.states.async_set(LIGHT, "off")
+    await _set_number(hass, entry, "sunset_advance", 0)
+    hass.states.async_set(PIR, "off")
+    await hass.async_block_till_done()
+    await _later(hass, seconds=31)
+    hass.states.async_set(PIR, "on")
+    await hass.async_block_till_done()
+    assert len(turn_on) == 1
+
+
+async def test_no_lux_sensor_turns_off_after_sunrise(hass: HomeAssistant, daytime) -> None:
     entries = async_capture_events(hass, "logbook_entry")
     turn_on = async_mock_service(hass, "light", "turn_on")
     turn_off = async_mock_service(hass, "homeassistant", "turn_off")
-    hass.states.async_set("sun.sun", "below_horizon")
+    # Levé depuis 10 min : encore dans la marge du matin, la pièce reste sombre.
+    _sun(hass, "above_horizon", rising=timedelta(minutes=24 * 60 - 10), setting=timedelta(hours=12))
     hass.states.async_set(PIR, "off")
     hass.states.async_set(LIGHT, "off")
     entry = await _setup(hass, **{CONF_ILLUMINANCE: None})
@@ -812,17 +856,13 @@ async def test_no_lux_sensor_sunrise_and_sunset(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
     assert len(turn_on) == 1
     assert "soleil couché" in entries[-1].data["message"]
-
-    # Le soleil se lève, quelqu'un est là : extinction 5 min plus tard.
     hass.states.async_set(LIGHT, "on", context=turn_on[0].context)
-    hass.states.async_set("sun.sun", "above_horizon")
     await hass.async_block_till_done()
+
+    # 30 min après le lever : extinction aussitôt.
+    await _next_minute(hass, daytime, 19)
     assert turn_off == []
-    # La course du soleil (attributs seuls) ne relance pas le délai.
-    await _later(hass, seconds=200)
-    hass.states.async_set("sun.sun", "above_horizon", {"elevation": 12})
-    await hass.async_block_till_done()
-    await _later(hass, seconds=301)
+    await _next_minute(hass, daytime, 1)
     assert _entities(turn_off) == [[LIGHT]]
     assert _room(hass, entry).attributes["daylight_locked"] is True
     assert entries[-1].data["message"] == "éteint les lumières, soleil levé"
@@ -834,10 +874,9 @@ async def test_no_lux_sensor_sunrise_and_sunset(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
     assert len(turn_on) == 1
 
-    # Coucher du soleil : l'allumage automatique reprend après 10 min.
-    hass.states.async_set("sun.sun", "below_horizon")
+    # Le soir, dans la marge du coucher : l'allumage reprend aussitôt.
+    _sun(hass, "above_horizon", rising=timedelta(hours=13), setting=timedelta(minutes=20))
     await hass.async_block_till_done()
-    await _later(hass, seconds=601)
     assert len(turn_on) == 2
     assert _room(hass, entry).attributes["daylight_locked"] is False
 

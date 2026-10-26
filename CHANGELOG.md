@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.15.0 — 2026-10-26
+
+- Pièce sans capteur de luminosité : deux nouveaux réglages, **Allumage avant le coucher du soleil** et **Extinction après le lever du soleil** (30 min par défaut, de 0 à 180 min), car l'intérieur est plus sombre que dehors. Une personne présente quand la marge du soir commence voit la lumière s'allumer sans attendre un mouvement ; une lumière gérée par Lumina s'éteint dès la fin de la marge du matin (au lieu de 5 min après le lever).
+- L'allumage automatique reprend dès la marge du soir, et non plus 10 min après le coucher quand la lumière avait été éteinte le matin.
+- Les marges valent aussi quand le capteur de luminosité choisi ne répond pas.
+
 ## 0.14.0 — 2026-10-26
 
 - Pièce sans capteur de luminosité : Lumina suit maintenant le soleil (`sun.sun`) au lieu de considérer la pièce toujours sombre. Les lumières ne s'allument automatiquement que soleil couché ; une lumière gérée par Lumina s'éteint 5 min après le lever du soleil si la pièce est occupée (« éteint les lumières, soleil levé » dans le Journal), puis l'allumage automatique reprend 10 min après le coucher. Un contrôle manuel en cours est respecté.

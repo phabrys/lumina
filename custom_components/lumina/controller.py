@@ -1188,6 +1188,8 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
             # Chaque heure : un calendrier peut changer sans changer d'état.
             self._schedule_day_kinds()
         self._follow_clock()
+        # Marges du lever et du coucher : franchies sans que le soleil change.
+        self._follow_sun()
 
     def _wake_if_due(self) -> bool:
         """Fin de nuit atteinte : réveil d'abord, avant toute réévaluation.
@@ -1222,14 +1224,15 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
             self._reevaluate_with_vacancy_credit()
 
     @callback
-    def _on_sun(self, event: Event[EventStateChangedData]) -> None:
-        # Seuls le lever et le coucher comptent, pas la course du soleil.
-        old_state = event.data["old_state"]
-        new_state = event.data["new_state"]
-        if old_state is not None and new_state is not None and (
-            old_state.state == new_state.state
-        ):
+    def _on_sun(self, _event: Event[EventStateChangedData]) -> None:
+        self._follow_sun()
+
+    def _follow_sun(self) -> None:
+        """Réévalue les lumières quand l'avis du soleil change."""
+        up = self._sun_up()
+        if up == self._sun_was_up:
             return
+        self._sun_was_up = up
         if self.occupied:
             self._evaluate_lights()
         self._notify()

@@ -45,6 +45,8 @@ from .const import (
     SETTING_NIGHT_TEMP_THRESHOLD,
     SETTING_OVERRIDE_DURATION,
     SETTING_SLEEP_BRIGHTNESS,
+    SETTING_SUNRISE_DELAY,
+    SETTING_SUNSET_ADVANCE,
     SETTING_TEMP_THRESHOLD,
     SETTING_VACANCY_CONFIRM,
 )
@@ -70,6 +72,10 @@ def _has_climates_and_fans(controller: RoomController) -> bool:
 
 def _has_illuminance(controller: RoomController) -> bool:
     return controller.illuminance is not None and _has_lights(controller)
+
+
+def _has_no_illuminance(controller: RoomController) -> bool:
+    return controller.illuminance is None and _has_lights(controller)
 
 
 def _has_temperature(controller: RoomController) -> bool:
@@ -133,6 +139,8 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
     _number(SETTING_SLEEP_BRIGHTNESS, 0, 100, 1, PERCENTAGE, slider=True, requires=_has_lights),
     _number(SETTING_VACANCY_CONFIRM, 0, 600, 5, UnitOfTime.SECONDS),
     _number(SETTING_DAYLIGHT_OFF_LUX, 0, 5000, 10, LIGHT_LUX, requires=_has_illuminance),
+    _number(SETTING_SUNSET_ADVANCE, 0, 180, 5, UnitOfTime.MINUTES, requires=_has_no_illuminance),
+    _number(SETTING_SUNRISE_DELAY, 0, 180, 5, UnitOfTime.MINUTES, requires=_has_no_illuminance),
     # --- Confort ---
     _number(SETTING_FAN_MIN_SPEED, 0, 100, 1, PERCENTAGE, slider=True, requires=_has_temperature),
     _number(
