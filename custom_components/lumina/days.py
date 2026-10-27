@@ -35,10 +35,6 @@ class DayControl(RoomBase):
         self.day_kinds = {}
         self._days_task: asyncio.Task[None] | None = None
 
-    def _night_end_moved(self) -> None:
-        """Les échéances de fin de nuit en cours suivent la nouvelle heure."""
-        raise NotImplementedError
-
     @property
     def day_sources(self) -> list[str]:
         return [*([self.workday_entity] if self.workday_entity else []), *self.holiday_calendars]

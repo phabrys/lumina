@@ -115,7 +115,7 @@ class LuminaSleepSwitch(LuminaEntity, SwitchEntity, RestoreEntity):
         return {
             "until": self._controller.sleeping_until,
             "source": self._controller.sleep_source,
-            "presence_seen": self._controller.attributes["sleep_presence_seen"],
+            "presence_seen": self._controller.sleep_presence_seen,
         }
 
     async def async_turn_on(self, **kwargs: Any) -> None:

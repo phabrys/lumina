@@ -102,7 +102,7 @@ async def test_night_override_survives_restart(hass: HomeAssistant, daytime) -> 
 
     room = _room(hass, entry)
     assert room.state == "override"
-    assert room.attributes["overrides_until_morning"] == ["lights"]
+    assert room.attributes["overrides_until_wake"] == ["lights"]
     await _later(hass, minutes=31)
     assert turn_on == []  # pas de rallumage au redémarrage
 

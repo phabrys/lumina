@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -35,6 +36,7 @@ from .const import (
     PERIOD_EVENING,
     PERIOD_NIGHT,
 )
+from .heat import apparent_temperature
 from .messages import message
 
 _LOGGER = logging.getLogger(__name__)
@@ -135,8 +137,13 @@ def _expected_fields(domain: str, service: str, data: dict[str, Any]) -> dict[st
     return expected
 
 
-class RoomBase:
-    """Outils partagés par les différentes parties du contrôleur de pièce."""
+class RoomBase(ABC):
+    """Outils partagés par les différentes parties du contrôleur de pièce.
+
+    Chaque partie (lumières, sommeil, clim…) est une sous-classe ; ce qu'une
+    partie attend d'une autre est déclaré ici en méthode abstraite, et le
+    contrôleur, qui les réunit toutes, les fournit.
+    """
 
     hass: HomeAssistant
     name: str
@@ -149,6 +156,12 @@ class RoomBase:
     groups: dict[str, ActuatorGroup]
     occupied: bool
     illuminance: str | None
+    temperature: str | None
+    humidity: str | None
+    # Lumières éteintes par la lumière du jour, sans rallumage pour l'instant
+    daylight_locked: bool
+    # Ventilateurs pendant que la clim tourne
+    fans_with_climate: str
     # Entité du capteur d'état, à laquelle le journal rattache ses entrées
     state_entity_id: str | None
 
@@ -165,15 +178,60 @@ class RoomBase:
         # Contrôleur arrêté (pièce déchargée ou rechargée) : plus de journal
         self._stopped = False
 
+    # --- Contrat entre les parties du contrôleur -------------------------
+
     @callback
+    @abstractmethod
     def async_reevaluate(self) -> None:
         """Réapplique les règles à l'état courant de la pièce."""
-        raise NotImplementedError
+
+    @abstractmethod
+    def _reevaluate_with_vacancy_credit(self) -> None:
+        """Réévalue en déduisant des délais d'extinction l'absence déjà écoulée."""
 
     @property
+    @abstractmethod
     def occupied_or_presumed(self) -> bool:
         """Pièce occupée, ou présumée occupée par un dormeur que le détecteur ne voit plus."""
-        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def lights_held(self) -> bool:
+        """Lumière gardée éteinte pendant le réveil du matin."""
+
+    @abstractmethod
+    def _still_watch(self) -> bool:
+        """Un détecteur qui voit les personnes immobiles répond-il ?"""
+
+    @abstractmethod
+    def _presence_for_sleep(self) -> bool:
+        """Quelqu'un est-il (ou était-il à l'instant) dans la pièce ?"""
+
+    @abstractmethod
+    def _wake_if_due(self) -> bool:
+        """Fin de nuit atteinte : réveil fait, avant toute réévaluation."""
+
+    @abstractmethod
+    def _night_end_moved(self) -> None:
+        """Les échéances de fin de nuit en cours suivent la nouvelle heure."""
+
+    @abstractmethod
+    def _is_dark(self) -> bool:
+        """Fait-il assez sombre pour allumer ?"""
+
+    @abstractmethod
+    def _check_daylight(self) -> None:
+        """Éteint les lumières quand la lumière naturelle suffit durablement."""
+
+    @abstractmethod
+    def _climate_running(self) -> bool:
+        """Une clim de la pièce agit-elle sur la température ?"""
+
+    @abstractmethod
+    def _reason(self) -> str:
+        """Contexte lisible des décisions, pour le journal."""
+
+    # ----------------------------------------------------------------------
 
     def _refresh(self, reevaluate: bool) -> None:
         if reevaluate:
@@ -249,6 +307,29 @@ class RoomBase:
     def _any_on(self, group: ActuatorGroup) -> bool:
         return any(self._is_on(entity_id) for entity_id in group.entity_ids)
 
+    def _to_turn_on(self, group: ActuatorGroup) -> list[str]:
+        """Entités du groupe à allumer, selon son mode."""
+        off = [e for e in group.entity_ids if not self._is_on(e)]
+        if group.mode == MODE_ALL:
+            return off
+        return group.entity_ids if len(off) == len(group.entity_ids) else []
+
+    @property
+    def apparent_temperature(self) -> float | None:
+        """Température ressentie, ou None sans humidité exploitable."""
+        temp = self._numeric_state(self.temperature)
+        humidity = self._numeric_state(self.humidity)
+        if temp is None or humidity is None:
+            return None
+        return apparent_temperature(temp, humidity)
+
+    def _effective_temperature(self) -> float | None:
+        """Température ressentie si l'humidité est connue, sinon mesurée."""
+        apparent = self.apparent_temperature
+        if apparent is not None:
+            return apparent
+        return self._numeric_state(self.temperature)
+
     def _is_own_change(self, new_state: State, changed: dict[str, Any]) -> bool:
         """Le changement vient-il d'une commande de Lumina ?
 
@@ -293,10 +374,6 @@ class RoomBase:
         group.override_until = until
         group.override_timer = async_call_later(self.hass, until - dt_util.utcnow(), _end_override)
         self._notify()
-
-    def _wake_if_due(self) -> bool:
-        """Fin de nuit atteinte : réveil fait, avant toute réévaluation."""
-        return False
 
     # --- Commandes ---------------------------------------------------------
 

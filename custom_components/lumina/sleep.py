@@ -67,18 +67,6 @@ class SleepControl(RoomBase):
         # main est un refus qui tient jusqu'au réveil.
         self._night_light_lit = False
 
-    def _reevaluate_with_vacancy_credit(self) -> None:
-        """Réévalue en déduisant des délais d'extinction l'absence déjà écoulée."""
-        raise NotImplementedError
-
-    def _still_watch(self) -> bool:
-        """Un détecteur qui voit les personnes immobiles répond-il ?"""
-        raise NotImplementedError
-
-    def _presence_for_sleep(self) -> bool:
-        """Quelqu'un est-il (ou était-il à l'instant) dans la pièce ?"""
-        raise NotImplementedError
-
     # --- Entrée et sortie -------------------------------------------------
 
     @callback
@@ -215,6 +203,11 @@ class SleepControl(RoomBase):
             and (source != SLEEP_LIGHTS_OFF or self.bedtime_gesture == BEDTIME_UNTIL_WAKE)
             and not self._still_watch()
         )
+
+    @property
+    def sleep_presence_seen(self) -> bool:
+        """Quelqu'un a-t-il été détecté depuis le début du sommeil ?"""
+        return self._sleep_presence_seen
 
     @property
     def presumed_occupied(self) -> bool:
