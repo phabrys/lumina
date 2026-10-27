@@ -77,9 +77,7 @@ async def _setup_after_restart(
 
 def _eid(hass: HomeAssistant, entry: MockConfigEntry, domain: str, key: str) -> str:
     """Identifiant d'une entité Lumina, quel que soit son nom généré."""
-    entity_id = er.async_get(hass).async_get_entity_id(
-        domain, DOMAIN, f"{entry.entry_id}_{key}"
-    )
+    entity_id = er.async_get(hass).async_get_entity_id(domain, DOMAIN, f"{entry.entry_id}_{key}")
     assert entity_id is not None, key
     return entity_id
 

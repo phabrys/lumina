@@ -125,9 +125,7 @@ async def test_expired_override_not_restored(hass: HomeAssistant) -> None:
     assert _entities(turn_on) == [[LIGHT]]
 
 
-async def test_night_override_survives_sleeper_dropout(
-    hass: HomeAssistant, daytime
-) -> None:
+async def test_night_override_survives_sleeper_dropout(hass: HomeAssistant, daytime) -> None:
     daytime.move_to(NIGHT)
     turn_on = async_mock_service(hass, "light", "turn_on")
     hass.states.async_set(PIR, "on")
@@ -152,9 +150,7 @@ async def test_night_override_survives_sleeper_dropout(
     assert _room(hass, entry).state == "sleeping"
 
 
-async def test_night_override_lifted_when_lights_left_on(
-    hass: HomeAssistant, daytime
-) -> None:
+async def test_night_override_lifted_when_lights_left_on(hass: HomeAssistant, daytime) -> None:
     daytime.move_to(NIGHT)
     turn_off = async_mock_service(hass, "homeassistant", "turn_off")
     hass.states.async_set(PIR, "on")
@@ -173,9 +169,7 @@ async def test_night_override_lifted_when_lights_left_on(
     assert _entities(turn_off) == [[LIGHT, "light.salon_2"]]
 
 
-async def test_night_manual_turn_on_keeps_set_duration(
-    hass: HomeAssistant, daytime
-) -> None:
+async def test_night_manual_turn_on_keeps_set_duration(hass: HomeAssistant, daytime) -> None:
     daytime.move_to(NIGHT)
     turn_off = async_mock_service(hass, "homeassistant", "turn_off")
     hass.states.async_set(PIR, "off")
@@ -186,9 +180,7 @@ async def test_night_manual_turn_on_keeps_set_duration(
     # Lumière allumée à la main dans une pièce vide : 30 min, pas jusqu'au matin.
     hass.states.async_set(LIGHT, "on")
     await hass.async_block_till_done()
-    until = dt_util.parse_datetime(
-        str(_room(hass, entry).attributes["lights_override_until"])
-    )
+    until = dt_util.parse_datetime(str(_room(hass, entry).attributes["lights_override_until"]))
     assert until - dt_util.utcnow() == timedelta(minutes=30)
 
     await _later(hass, minutes=31)
@@ -530,9 +522,7 @@ async def test_expired_sleep_not_restored(hass: HomeAssistant) -> None:
     assert _room(hass, entry).attributes["sleeping"] is False
 
 
-async def test_override_restored_from_pre_sleep_attribute(
-    hass: HomeAssistant, daytime
-) -> None:
+async def test_override_restored_from_pre_sleep_attribute(hass: HomeAssistant, daytime) -> None:
     daytime.move_to(NIGHT)
     hass.states.async_set(PIR, "on")
     hass.states.async_set(LIGHT, "off")
@@ -560,9 +550,7 @@ async def test_manual_turn_on_while_asleep_keeps_set_duration(
 
     hass.states.async_set(LIGHT, "on")  # lampe de chevet allumée à la main
     await hass.async_block_till_done()
-    until = dt_util.parse_datetime(
-        str(_room(hass, entry).attributes["lights_override_until"])
-    )
+    until = dt_util.parse_datetime(str(_room(hass, entry).attributes["lights_override_until"]))
     assert until - dt_util.utcnow() == timedelta(minutes=30)
     assert _room(hass, entry).attributes["overrides_until_wake"] == []
 
@@ -698,9 +686,7 @@ async def test_bedtime_gesture_ignores_automations(hass: HomeAssistant, daytime)
     assert _room(hass, entry).attributes["sleeping"] is False
 
 
-async def test_guessed_sleep_ends_when_living_room_empties(
-    hass: HomeAssistant, daytime
-) -> None:
+async def test_guessed_sleep_ends_when_living_room_empties(hass: HomeAssistant, daytime) -> None:
     daytime.move_to(NIGHT)
     turn_on = async_mock_service(hass, "light", "turn_on")
     hass.states.async_set(PIR, "on")
@@ -855,9 +841,7 @@ async def test_night_light_after_bedtime_script(hass: HomeAssistant, daytime) ->
     assert _room(hass, entry).attributes["overrides_until_wake"] == ["lights"]
 
 
-async def test_restored_sleep_keeps_manual_turn_on_duration(
-    hass: HomeAssistant, daytime
-) -> None:
+async def test_restored_sleep_keeps_manual_turn_on_duration(hass: HomeAssistant, daytime) -> None:
     daytime.move_to(NIGHT)
     hass.states.async_set(PIR, "on")
     hass.states.async_set(FAN, "on")
@@ -868,9 +852,7 @@ async def test_restored_sleep_keeps_manual_turn_on_duration(
     fan_until = dt_util.utcnow() + timedelta(minutes=20)
     entry.runtime_data.restore_override("fans", fan_until, until_wake=False)
     until = dt_util.utcnow() + timedelta(hours=7, minutes=30)
-    entry.runtime_data.start_sleep(
-        until=until, presence_seen=True, restored=True, reevaluate=False
-    )
+    entry.runtime_data.start_sleep(until=until, presence_seen=True, restored=True, reevaluate=False)
     attrs = entry.runtime_data.attributes
     assert attrs["overrides_until_wake"] == []
     assert attrs["fans_override_until"] == fan_until
@@ -882,7 +864,9 @@ async def test_legacy_night_override_switch_migrates(hass: HomeAssistant) -> Non
     entry = _entry(hass)
     ent_reg = er.async_get(hass)
     legacy = ent_reg.async_get_or_create(
-        "switch", DOMAIN, f"{entry.entry_id}_night_override_until_morning",
+        "switch",
+        DOMAIN,
+        f"{entry.entry_id}_night_override_until_morning",
         config_entry=entry,
     )
     mock_restore_cache(hass, [State(legacy.entity_id, "on")])
@@ -998,9 +982,7 @@ async def test_restart_across_night_end_keeps_light_off(hass: HomeAssistant, day
     assert held - until == timedelta(minutes=30)
 
 
-async def test_warning_return_while_asleep_never_brightens(
-    hass: HomeAssistant, daytime
-) -> None:
+async def test_warning_return_while_asleep_never_brightens(hass: HomeAssistant, daytime) -> None:
     daytime.move_to(NIGHT)
     turn_on = async_mock_service(hass, "light", "turn_on")
     hass.states.async_set(PIR, "on")
@@ -1055,9 +1037,7 @@ async def test_still_sensor_lets_fans_stop_during_sleep(hass: HomeAssistant, day
     turn_off = async_mock_service(hass, "homeassistant", "turn_off")
     hass.states.async_set(PIR, "on")  # radar : voit le dormeur immobile
     hass.states.async_set(FAN, "on")
-    entry = await _setup(
-        hass, **{CONF_LIGHTS: [], CONF_FANS: [FAN], CONF_PRESENCE_STILL: [PIR]}
-    )
+    entry = await _setup(hass, **{CONF_LIGHTS: [], CONF_FANS: [FAN], CONF_PRESENCE_STILL: [PIR]})
     await _switch(hass, entry, "sleeping")
     await _vacate(hass)  # parti dormir ailleurs : la pièce est vraiment vide
 
@@ -1085,9 +1065,7 @@ async def test_dead_still_sensor_presumes_again(hass: HomeAssistant, daytime) ->
     assert turn_off == []
 
 
-async def test_still_sensor_ends_wake_hold_when_room_empties(
-    hass: HomeAssistant, daytime
-) -> None:
+async def test_still_sensor_ends_wake_hold_when_room_empties(hass: HomeAssistant, daytime) -> None:
     daytime.move_to(NIGHT)
     turn_on = async_mock_service(hass, "light", "turn_on")
     hass.states.async_set(PIR, "on")

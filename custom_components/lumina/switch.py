@@ -43,9 +43,7 @@ class LuminaAutoSwitch(LuminaEntity, SwitchEntity, RestoreEntity):
         await super().async_added_to_hass()
         last_state = await self.async_get_last_state()
         if last_state is not None and last_state.state in (STATE_ON, STATE_OFF):
-            self._controller.set_enabled(
-                self._kind, last_state.state == STATE_ON, reevaluate=False
-            )
+            self._controller.set_enabled(self._kind, last_state.state == STATE_ON, reevaluate=False)
 
     @property
     def is_on(self) -> bool:

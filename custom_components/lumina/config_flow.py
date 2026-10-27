@@ -54,9 +54,7 @@ def _area_entities(hass: HomeAssistant, area_id: str) -> list[er.RegistryEntry]:
             if entry.area_id is None
         )
     return [
-        entry
-        for entry in entries
-        if entry.disabled_by is None and entry.entity_category is None
+        entry for entry in entries if entry.disabled_by is None and entry.entity_category is None
     ]
 
 
@@ -147,23 +145,17 @@ def _entities_schema(defaults: dict[str, Any]) -> vol.Schema:
             ),
             vol.Optional(CONF_LIGHTS, description=suggested(CONF_LIGHTS)): (
                 selector.EntitySelector(
-                    selector.EntitySelectorConfig(
-                        domain=["light", "switch"], multiple=True
-                    )
+                    selector.EntitySelectorConfig(domain=["light", "switch"], multiple=True)
                 )
             ),
             vol.Optional(CONF_ILLUMINANCE, description=suggested(CONF_ILLUMINANCE)): (
                 selector.EntitySelector(
-                    selector.EntitySelectorConfig(
-                        domain="sensor", device_class="illuminance"
-                    )
+                    selector.EntitySelectorConfig(domain="sensor", device_class="illuminance")
                 )
             ),
             vol.Optional(CONF_FANS, description=suggested(CONF_FANS)): (
                 selector.EntitySelector(
-                    selector.EntitySelectorConfig(
-                        domain=["fan", "switch"], multiple=True
-                    )
+                    selector.EntitySelectorConfig(domain=["fan", "switch"], multiple=True)
                 )
             ),
             vol.Optional(CONF_CLIMATES, description=suggested(CONF_CLIMATES)): (
@@ -173,16 +165,12 @@ def _entities_schema(defaults: dict[str, Any]) -> vol.Schema:
             ),
             vol.Optional(CONF_TEMPERATURE, description=suggested(CONF_TEMPERATURE)): (
                 selector.EntitySelector(
-                    selector.EntitySelectorConfig(
-                        domain="sensor", device_class="temperature"
-                    )
+                    selector.EntitySelectorConfig(domain="sensor", device_class="temperature")
                 )
             ),
             vol.Optional(CONF_HUMIDITY, description=suggested(CONF_HUMIDITY)): (
                 selector.EntitySelector(
-                    selector.EntitySelectorConfig(
-                        domain="sensor", device_class="humidity"
-                    )
+                    selector.EntitySelectorConfig(domain="sensor", device_class="humidity")
                 )
             ),
             vol.Optional(CONF_SLEEP, description=suggested(CONF_SLEEP)): (
@@ -212,9 +200,7 @@ def _validate(user_input: dict[str, Any]) -> dict[str, str]:
         errors["base"] = "no_actuator"
     # Une clim gérée ne peut pas maintenir la présence : la pièce ne se
     # viderait jamais et la clim ne s'arrêterait jamais.
-    elif set(user_input.get(CONF_CLIMATES) or []) & set(
-        user_input.get(CONF_PRESENCE_HOLD) or []
-    ):
+    elif set(user_input.get(CONF_CLIMATES) or []) & set(user_input.get(CONF_PRESENCE_HOLD) or []):
         errors[CONF_PRESENCE_HOLD] = "climate_in_hold"
     return errors
 
@@ -230,9 +216,7 @@ class LuminaConfigFlow(ConfigFlow, domain=DOMAIN):
         self._area_id: str | None = None
         self._area_name: str | None = None
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Étape 1 : choix de la pièce."""
         if user_input is not None:
             area_id = user_input[CONF_AREA]
@@ -281,9 +265,7 @@ class LuminaConfigFlow(ConfigFlow, domain=DOMAIN):
 class LuminaOptionsFlow(OptionsFlow):
     """Reconfiguration des entités d'une pièce."""
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
             errors = _validate(user_input)

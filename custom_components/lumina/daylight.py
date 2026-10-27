@@ -117,9 +117,7 @@ class DaylightControl(RoomBase):
             if self.illuminance is None:
                 self._log("lights_off_sun_up")
             else:
-                self._log(
-                    "lights_off_daylight", lux=self._numeric_state(self.illuminance)
-                )
+                self._log("lights_off_daylight", lux=self._numeric_state(self.illuminance))
         self._notify()
 
     @callback

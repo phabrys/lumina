@@ -8,7 +8,15 @@ target-version = "py313"
 line-length = 100
 
 [tool.ruff.lint]
+# Preview : active les règles PEP 8 sur les lignes vides et les espaces (E1, E2, E3)
+preview = true
 select = ["B", "E", "F", "I", "RUF", "SIM", "UP", "W"]
+ignore = [
+    # Home Assistant impose des fonctions async (async_setup_entry…) même sans await
+    "RUF029",
+    # __init__.py porte le code de l'intégration, comme le veut Home Assistant
+    "RUF067",
+]
 
 [tool.ruff.lint.isort]
 # Même ordre d'imports que Home Assistant

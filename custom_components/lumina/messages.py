@@ -116,8 +116,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
             "unless the lights are switched by hand"
         ),
         "sleep_entity_ignored_vacant": (
-            "does not go to sleep: the sleep entity turned on, but nobody is "
-            "in the room"
+            "does not go to sleep: the sleep entity turned on, but nobody is in the room"
         ),
         "wake_hold_end": "resumes normal control after wake-up",
         "sleep_ended_vacant": "wakes up, room empty",

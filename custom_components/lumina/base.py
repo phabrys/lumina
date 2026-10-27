@@ -258,10 +258,7 @@ class RoomBase:
         if new_state.context.id in self._own_contexts:
             return True
         sent_at, expected = self._expected.get(new_state.entity_id, (None, {}))
-        if (
-            sent_at is None
-            or (dt_util.utcnow() - sent_at).total_seconds() > CONFIRMATION_WINDOW
-        ):
+        if sent_at is None or (dt_util.utcnow() - sent_at).total_seconds() > CONFIRMATION_WINDOW:
             return False
         step = new_state.attributes.get(ATTR_PERCENTAGE_STEP) or 1
         for key, value in changed.items():
@@ -294,9 +291,7 @@ class RoomBase:
             self.async_reevaluate()
 
         group.override_until = until
-        group.override_timer = async_call_later(
-            self.hass, until - dt_util.utcnow(), _end_override
-        )
+        group.override_timer = async_call_later(self.hass, until - dt_util.utcnow(), _end_override)
         self._notify()
 
     def _wake_if_due(self) -> bool:
@@ -330,9 +325,7 @@ class RoomBase:
             if (now - sent_at).total_seconds() > CONFIRMATION_WINDOW:
                 previous = {}
             self._expected[entity_id] = (now, {**previous, **expected})
-        self.hass.async_create_task(
-            self._async_service(domain, service, entity_ids, context, data)
-        )
+        self.hass.async_create_task(self._async_service(domain, service, entity_ids, context, data))
 
     async def _async_service(
         self,
@@ -355,7 +348,11 @@ class RoomBase:
         except Exception as err:
             _LOGGER.warning(
                 "%s : échec de %s.%s sur %s : %s",
-                self.name, domain, service, ", ".join(entity_ids), err,
+                self.name,
+                domain,
+                service,
+                ", ".join(entity_ids),
+                err,
             )
             # Pièce déchargée entre-temps : le Journal ne concerne plus ce contrôleur.
             if self._stopped:

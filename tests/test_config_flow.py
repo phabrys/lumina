@@ -43,9 +43,7 @@ async def test_add_room_with_discovery(hass: HomeAssistant) -> None:
     )
     assert result["type"] is FlowResultType.FORM
 
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_AREA: area.id}
-    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_AREA: area.id})
     assert result["step_id"] == "entities"
     assert _suggested(result, CONF_PRESENCE) == [pir.entity_id]
     assert _suggested(result, CONF_LIGHTS) == [light.entity_id]
@@ -64,9 +62,7 @@ async def test_room_requires_an_actuator(hass: HomeAssistant) -> None:
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_AREA: area.id}
-    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_AREA: area.id})
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {CONF_PRESENCE: ["binary_sensor.pir_couloir"]}
     )
@@ -87,12 +83,20 @@ async def test_discovery_through_devices(hass: HomeAssistant) -> None:
     dr.async_get(hass).async_update_device(device.id, area_id=bureau.id)
     ent_reg = er.async_get(hass)
     pir = ent_reg.async_get_or_create(
-        "binary_sensor", "test", "pir", device_id=device.id,
-        original_device_class="motion", original_name="Mouvement",
+        "binary_sensor",
+        "test",
+        "pir",
+        device_id=device.id,
+        original_device_class="motion",
+        original_name="Mouvement",
     )
     elsewhere = ent_reg.async_get_or_create(
-        "binary_sensor", "test", "pir_couloir", device_id=device.id,
-        original_device_class="motion", original_name="Mouvement couloir",
+        "binary_sensor",
+        "test",
+        "pir_couloir",
+        device_id=device.id,
+        original_device_class="motion",
+        original_name="Mouvement couloir",
     )
     ent_reg.async_update_entity(elsewhere.entity_id, area_id=couloir.id)
 
@@ -110,9 +114,7 @@ async def test_managed_climate_cannot_hold_presence(hass: HomeAssistant) -> None
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_AREA: area.id}
-    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {CONF_AREA: area.id})
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
         {

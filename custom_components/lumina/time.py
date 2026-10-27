@@ -72,9 +72,7 @@ async def async_setup_entry(
         if entity_id is not None:
             ent_reg.async_remove(entity_id)
     async_add_entities(
-        LuminaTime(entry, description)
-        for description in TIMES
-        if not unused.get(description.key)
+        LuminaTime(entry, description) for description in TIMES if not unused.get(description.key)
     )
 
 

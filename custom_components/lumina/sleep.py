@@ -116,9 +116,7 @@ class SleepControl(RoomBase):
         if not was_sleeping:
             self._release_wake_hold()
             self._night_light_lit = False
-            self._sleep_presence_seen = (
-                self.occupied if presence_seen is None else presence_seen
-            )
+            self._sleep_presence_seen = self.occupied if presence_seen is None else presence_seen
             for group in self.groups.values():
                 if restored or not group.overridden or group.override_turned_on:
                     continue  # un allumage à la main garde sa durée
@@ -278,9 +276,7 @@ class SleepControl(RoomBase):
 
         cancel_timer(self._wake_hold_timer)
         self.wake_hold_until = until
-        self._wake_hold_timer = async_call_later(
-            self.hass, until - dt_util.utcnow(), _hold_end
-        )
+        self._wake_hold_timer = async_call_later(self.hass, until - dt_util.utcnow(), _hold_end)
 
     def _release_wake_hold(self) -> None:
         cancel_timer(self._wake_hold_timer)

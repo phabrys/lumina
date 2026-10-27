@@ -275,7 +275,6 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
         """Pièce occupée avant le redémarrage : le maintien peut prolonger l'occupation."""
         self.occupied = True
 
-
     @callback
     def restore_override(self, kind: str, until: datetime, *, until_wake: bool) -> None:
         """Contrôle manuel d'avant le redémarrage : repris jusqu'à son échéance."""
@@ -303,9 +302,7 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
             self.occupied = self._compute_occupied()
         self._natural_period = self._compute_natural_period()
         self.period = self._effective_period()
-        self._unsubs.append(
-            async_track_time_change(self.hass, self._on_minute, second=0)
-        )
+        self._unsubs.append(async_track_time_change(self.hass, self._on_minute, second=0))
         self._unsubs.append(async_at_started(self.hass, self._on_started))
         self._schedule_day_kinds()
         self._check_presence_health()
@@ -333,20 +330,14 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
         action: Callable[[Event[EventStateChangedData]], None],
     ) -> None:
         if entity_ids:
-            self._unsubs.append(
-                async_track_state_change_event(self.hass, entity_ids, action)
-            )
+            self._unsubs.append(async_track_state_change_event(self.hass, entity_ids, action))
 
     async def _on_started(self, _hass: HomeAssistant) -> None:
         # Entité de sommeil éteinte pendant l'arrêt de Home Assistant : réveil.
         # Un état « on » déjà vu (réveil du matin passé) ne rendort pas la pièce.
         if self.sleep_source == SLEEP_ENTITY and self._sleep_entity_state() == STATE_OFF:
             self.wake(reason=SLEEP_ENTITY, reevaluate=False)
-        if (
-            self.occupied
-            and not self._compute_occupied()
-            and not self._presence_unknown()
-        ):
+        if self.occupied and not self._compute_occupied() and not self._presence_unknown():
             # Occupation d'avant le redémarrage que rien ne confirme : elle est
             # levée après la confirmation d'absence, sauf si un média reprend.
             self._presence_lost()
@@ -445,19 +436,6 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
     def set_fans_with_climate(self, mode: str, *, reevaluate: bool = True) -> None:
         self.fans_with_climate = mode
         self._refresh(reevaluate)
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     @property
     def room_state(self) -> str:
@@ -590,7 +568,6 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
                     self._schedule_off(group)
         self._notify()
 
-
     def _compute_natural_period(self) -> str:
         """Jour, soirée ou nuit selon les plages réglées.
 
@@ -622,8 +599,7 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
         return [
             entity_id
             for entity_id in self.presence
-            if (state := self.hass.states.get(entity_id)) is None
-            or state.state in INVALID_STATES
+            if (state := self.hass.states.get(entity_id)) is None or state.state in INVALID_STATES
         ]
 
     def _still_watch(self) -> bool:
@@ -729,9 +705,7 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
             below = sun is not None and sun.state == SUN_BELOW_HORIZON
             parts.append(
                 self._message(
-                    "reason_lux_unavailable_sun_down"
-                    if below
-                    else "reason_lux_unavailable"
+                    "reason_lux_unavailable_sun_down" if below else "reason_lux_unavailable"
                 )
             )
         elif not self._sun_up():
@@ -802,8 +776,12 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
         data = {ATTR_BRIGHTNESS_PCT: round(brightness)}
         if lights_ct:
             self._service(
-                "light", SERVICE_TURN_ON, lights_ct, context,
-                **data, **{ATTR_COLOR_TEMP_KELVIN: round(color_temp)},
+                "light",
+                SERVICE_TURN_ON,
+                lights_ct,
+                context,
+                **data,
+                **{ATTR_COLOR_TEMP_KELVIN: round(color_temp)},
             )
         if lights_plain:
             self._service("light", SERVICE_TURN_ON, lights_plain, context, **data)
@@ -823,9 +801,7 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
             else:
                 unknown.append(entity_id)
         for level, entity_ids in by_level.items():
-            self._service(
-                "light", SERVICE_TURN_ON, entity_ids, context, **{ATTR_BRIGHTNESS: level}
-            )
+            self._service("light", SERVICE_TURN_ON, entity_ids, context, **{ATTR_BRIGHTNESS: level})
         if unknown:
             # Luminosité d'avant inconnue : celle du réglage, ou pleine si
             # l'allumage automatique est coupé (luminosité réglée à 0).
@@ -869,9 +845,7 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
         switching = bool(targets) or (want_on is False and is_on)
         # Bascule trop proche de la précédente : reportée, mais la vitesse des
         # ventilateurs en marche suit toujours la température.
-        blocked = (
-            switching and self.temperature is not None and self._fan_cycle_blocked(group)
-        )
+        blocked = switching and self.temperature is not None and self._fan_cycle_blocked(group)
         if want_on is False and is_on:
             if blocked:
                 return
@@ -952,11 +926,7 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
         to_adjust: list[str] = []
         for entity_id in group.entity_ids:
             state = self.hass.states.get(entity_id)
-            if (
-                domain_of(entity_id) != "fan"
-                or state is None
-                or state.state != STATE_ON
-            ):
+            if domain_of(entity_id) != "fan" or state is None or state.state != STATE_ON:
                 continue
             current = state.attributes.get(ATTR_PERCENTAGE)
             step = state.attributes.get(ATTR_PERCENTAGE_STEP) or 1
@@ -969,7 +939,10 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
                 to_adjust.append(entity_id)
         if to_adjust:
             self._service(
-                "fan", SERVICE_SET_PERCENTAGE, to_adjust, self._new_context(),
+                "fan",
+                SERVICE_SET_PERCENTAGE,
+                to_adjust,
+                self._new_context(),
                 percentage=percentage,
             )
             self._log(
@@ -1031,7 +1004,10 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
                 context = self._new_context()
                 for target, entity_ids in targets.items():
                     self._service(
-                        "light", SERVICE_TURN_ON, entity_ids, context,
+                        "light",
+                        SERVICE_TURN_ON,
+                        entity_ids,
+                        context,
                         **{ATTR_BRIGHTNESS: target},
                     )
                 group.warning = True
@@ -1123,9 +1099,7 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
         if self._vacancy_timer is None:
             self._presence_lost_at = self.hass.loop.time()
             self._vacancy_at = dt_util.utcnow() + timedelta(seconds=confirm)
-            self._vacancy_timer = async_call_later(
-                self.hass, confirm, self._confirm_vacancy
-            )
+            self._vacancy_timer = async_call_later(self.hass, confirm, self._confirm_vacancy)
         self._notify()
 
     @callback
@@ -1247,7 +1221,6 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
             self._evaluate_fans()
         self._notify()
 
-
     def _make_actuator_handler(
         self, group: ActuatorGroup
     ) -> Callable[[Event[EventStateChangedData]], None]:
@@ -1271,22 +1244,15 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
                 if old_state.attributes.get(attr) != value:
                     changed[attr] = value
             if changed and not self._is_own_change(new_state, changed):
-                self._start_override(
-                    group, turned_on=changed.get(STATE_FIELD) == STATE_ON
-                )
+                self._start_override(group, turned_on=changed.get(STATE_FIELD) == STATE_ON)
                 if self._is_bedtime_gesture(group, changed, new_state):
                     self.start_sleep(source=SLEEP_LIGHTS_OFF)
             # Clim lancée ou arrêtée : les ventilateurs s'adaptent.
-            if (
-                group.kind == KIND_CLIMATE
-                and STATE_FIELD in changed
-                and self.occupied_or_presumed
-            ):
+            if group.kind == KIND_CLIMATE and STATE_FIELD in changed and self.occupied_or_presumed:
                 self._evaluate_fans()
                 self._notify()
 
         return _handler
-
 
     def _start_override(self, group: ActuatorGroup, *, turned_on: bool = False) -> None:
         minutes = self.settings[SETTING_OVERRIDE_DURATION]
@@ -1343,6 +1309,4 @@ class RoomController(SleepControl, ClimateControl, DaylightControl, DayControl):
                 self._log(f"{group.kind}_override", minutes=minutes)
 
         cancel_timer(group.override_log_timer)
-        group.override_log_timer = async_call_later(
-            self.hass, OVERRIDE_DEBOUNCE, _log_override
-        )
+        group.override_log_timer = async_call_later(self.hass, OVERRIDE_DEBOUNCE, _log_override)

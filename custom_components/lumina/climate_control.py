@@ -119,7 +119,10 @@ class ClimateControl(RoomBase):
                 if CLIMATE_ACTION_ECO not in (attrs.get(ATTR_PRESET_MODES) or []):
                     continue  # pas de mode eco sur cette clim
                 self._service(
-                    "climate", SERVICE_SET_PRESET_MODE, [entity_id], context,
+                    "climate",
+                    SERVICE_SET_PRESET_MODE,
+                    [entity_id],
+                    context,
                     preset_mode=CLIMATE_ACTION_ECO,
                 )
             elif action == CLIMATE_ACTION_SETBACK:
@@ -131,7 +134,10 @@ class ClimateControl(RoomBase):
                 low = attrs.get(ATTR_MIN_TEMP, target + delta)
                 high = attrs.get(ATTR_MAX_TEMP, target + delta)
                 self._service(
-                    "climate", SERVICE_SET_TEMPERATURE, [entity_id], context,
+                    "climate",
+                    SERVICE_SET_TEMPERATURE,
+                    [entity_id],
+                    context,
                     temperature=min(max(target + delta, low), high),
                 )
             saved[entity_id] = previous
@@ -168,17 +174,26 @@ class ClimateControl(RoomBase):
         for entity_id, previous in saved.items():
             if action == CLIMATE_ACTION_OFF:
                 self._service(
-                    "climate", SERVICE_SET_HVAC_MODE, [entity_id], context,
+                    "climate",
+                    SERVICE_SET_HVAC_MODE,
+                    [entity_id],
+                    context,
                     hvac_mode=previous[_ATTR_HVAC_MODE_SAVED],
                 )
             elif action == CLIMATE_ACTION_ECO:
                 self._service(
-                    "climate", SERVICE_SET_PRESET_MODE, [entity_id], context,
+                    "climate",
+                    SERVICE_SET_PRESET_MODE,
+                    [entity_id],
+                    context,
                     preset_mode=previous[ATTR_PRESET_MODE] or PRESET_NONE,
                 )
             elif action == CLIMATE_ACTION_SETBACK and previous[ATTR_TEMPERATURE] is not None:
                 self._service(
-                    "climate", SERVICE_SET_TEMPERATURE, [entity_id], context,
+                    "climate",
+                    SERVICE_SET_TEMPERATURE,
+                    [entity_id],
+                    context,
                     temperature=previous[ATTR_TEMPERATURE],
                 )
         self._log("climate_restored")
@@ -204,7 +219,10 @@ class ClimateControl(RoomBase):
             low = attrs.get(ATTR_MIN_TEMP, target)
             high = attrs.get(ATTR_MAX_TEMP, target)
             self._service(
-                "climate", SERVICE_SET_TEMPERATURE, [entity_id], context,
+                "climate",
+                SERVICE_SET_TEMPERATURE,
+                [entity_id],
+                context,
                 **{ATTR_HVAC_MODE: HVACMode.COOL},
                 temperature=min(max(target, low), high),
             )

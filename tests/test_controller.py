@@ -544,9 +544,7 @@ async def test_forced_night_wins_over_evening(hass: HomeAssistant, daytime) -> N
     assert "repasse en mode soirée" in [e.data["message"] for e in entries]
 
 
-async def test_evening_start_inside_night_disables_evening(
-    hass: HomeAssistant, daytime
-) -> None:
+async def test_evening_start_inside_night_disables_evening(hass: HomeAssistant, daytime) -> None:
     daytime.move_to(EVENING)
     hass.states.async_set(PIR, "off")
     entry = await _setup(hass)
@@ -1140,9 +1138,7 @@ async def test_climate_left_alone_at_night(hass: HomeAssistant, daytime) -> None
     assert turn_off == []
 
 
-async def test_climate_not_restored_after_long_absence(
-    hass: HomeAssistant, daytime
-) -> None:
+async def test_climate_not_restored_after_long_absence(hass: HomeAssistant, daytime) -> None:
     async_mock_service(hass, "climate", "turn_off")
     set_mode = async_mock_service(hass, "climate", "set_hvac_mode")
     await _setup_with_climate(hass)
@@ -1198,9 +1194,7 @@ async def test_evening_climate_on_with_presence(hass: HomeAssistant, daytime) ->
     assert entries[-1].data["message"] == "allume la clim à 25 °C, présence en soirée"
 
 
-async def test_evening_climate_off_when_vacant_then_on_again(
-    hass: HomeAssistant, daytime
-) -> None:
+async def test_evening_climate_off_when_vacant_then_on_again(hass: HomeAssistant, daytime) -> None:
     set_temp = async_mock_service(hass, "climate", "set_temperature")
     turn_off = async_mock_service(hass, "climate", "turn_off")
     set_mode = async_mock_service(hass, "climate", "set_hvac_mode")
@@ -1315,9 +1309,7 @@ async def test_fans_circulate_while_climate_runs(hass: HomeAssistant) -> None:
     turn_off = async_mock_service(hass, "homeassistant", "turn_off")
     hass.states.async_set(TEMP, "22")  # sous le seuil : arrêt selon la température
     hass.states.async_set(FAN, "off")
-    entry = await _setup_with_climate(
-        hass, **{CONF_FANS: [FAN], CONF_TEMPERATURE: TEMP}
-    )
+    entry = await _setup_with_climate(hass, **{CONF_FANS: [FAN], CONF_TEMPERATURE: TEMP})
     assert turn_on == []
 
     await _select(hass, entry, "fans_with_climate", "mix")
@@ -1336,9 +1328,7 @@ async def test_fans_stop_while_climate_runs(hass: HomeAssistant) -> None:
     turn_off = async_mock_service(hass, "homeassistant", "turn_off")
     hass.states.async_set(TEMP, "30")
     hass.states.async_set(FAN, "on", {"percentage": 100})
-    entry = await _setup_with_climate(
-        hass, **{CONF_FANS: [FAN], CONF_TEMPERATURE: TEMP}
-    )
+    entry = await _setup_with_climate(hass, **{CONF_FANS: [FAN], CONF_TEMPERATURE: TEMP})
 
     await _select(hass, entry, "fans_with_climate", "off")
     assert _entities(turn_off) == [[FAN]]
@@ -1372,9 +1362,7 @@ async def test_warning_return_restores_previous_brightness(hass: HomeAssistant) 
     assert turn_on[-1].data["brightness"] == 153  # pas la luminosité réglée (100 %)
 
 
-async def test_warning_return_at_night_without_auto_lights(
-    hass: HomeAssistant, daytime
-) -> None:
+async def test_warning_return_at_night_without_auto_lights(hass: HomeAssistant, daytime) -> None:
     daytime.move_to(NIGHT)
     turn_on = async_mock_service(hass, "light", "turn_on")
     hass.states.async_set(PIR, "on")
@@ -1435,9 +1423,7 @@ async def test_dead_presence_sensor_turns_nothing_off(hass: HomeAssistant) -> No
     hass.states.async_set(LIGHT, "on")
     hass.states.async_set(FAN, "on")
     hass.states.async_set("climate.salon", "cool")
-    entry = await _setup(
-        hass, **{CONF_FANS: [FAN], CONF_CLIMATES: ["climate.salon"]}
-    )
+    entry = await _setup(hass, **{CONF_FANS: [FAN], CONF_CLIMATES: ["climate.salon"]})
 
     room = _room(hass, entry)
     assert room.attributes["presence_unknown"] is True
@@ -1518,9 +1504,7 @@ async def test_different_fan_speed_is_still_an_override(hass: HomeAssistant) -> 
     assert _room(hass, entry).state == "override"
 
 
-async def test_late_change_after_window_is_an_override(
-    hass: HomeAssistant, daytime
-) -> None:
+async def test_late_change_after_window_is_an_override(hass: HomeAssistant, daytime) -> None:
     entry = await _fan_started_by_lumina(hass)
 
     daytime.tick(timedelta(minutes=2))
@@ -1577,13 +1561,13 @@ async def test_fan_speed_follows_during_min_cycle(hass: HomeAssistant) -> None:
 async def test_fan_only_climate_left_alone(hass: HomeAssistant) -> None:
     turn_off = async_mock_service(hass, "climate", "turn_off")
     entry = await _setup_with_climate(hass)
-    hass.states.async_set(
-        CLIMATE, "fan_only", CLIMATE_ATTRS, context=Context(user_id=None)
-    )
+    hass.states.async_set(CLIMATE, "fan_only", CLIMATE_ATTRS, context=Context(user_id=None))
     await hass.async_block_till_done()
     await _select(hass, entry, "climate_vacant_day", "off")
     await hass.services.async_call(
-        "button", "press", {"entity_id": _eid(hass, entry, "button", "resume")},
+        "button",
+        "press",
+        {"entity_id": _eid(hass, entry, "button", "resume")},
         blocking=True,
     )
 

@@ -114,6 +114,8 @@ def _number(
     )
 
 
+# Tableau des réglages : une ligne par réglage, alignée à la main
+# fmt: off
 NUMBERS: tuple[LuminaNumberDescription, ...] = (
     _number(SETTING_LUX_THRESHOLD, 0, 2000, 5, LIGHT_LUX, requires=_has_illuminance),
     _number(SETTING_LIGHT_OFF_DELAY, 0, 3600, 10, UnitOfTime.SECONDS, requires=_has_lights),
@@ -166,6 +168,7 @@ NUMBERS: tuple[LuminaNumberDescription, ...] = (
         requires=_has_climates,
     ),
 )
+# fmt: on
 
 
 async def async_setup_entry(
