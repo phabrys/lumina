@@ -1,9 +1,9 @@
 # Changelog
 
-## Non publié
+## 0.17.0 — 2026-10-27
 
 - L'attribut `overrides_until_morning` du capteur d'état n'est plus publié : il servait à Lumina Card 0.2, et `overrides_until_wake` le remplace depuis Lumina 0.10.0. Un état enregistré sous l'ancien nom est toujours relu au redémarrage.
-- Code réorganisé sans changement de comportement : lumières et ventilateurs dans leurs propres modules (`lights.py`, `fans.py`), et ce que chaque partie du contrôleur attend des autres déclaré en un seul endroit (`RoomBase`).
+- Code réorganisé et mis en forme selon PEP 8, sans changement de comportement : lumières et ventilateurs dans leurs propres modules (`lights.py`, `fans.py`), et ce que chaque partie du contrôleur attend des autres déclaré en un seul endroit (`RoomBase`).
 
 ## 0.16.0 — 2026-10-26
 
