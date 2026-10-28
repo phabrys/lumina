@@ -59,7 +59,7 @@ async def async_get_config_entry_diagnostics(
                     "enabled": group.enabled,
                     "mode": group.mode,
                     "override_until": group.override_until,
-                    "off_pending": group.off_timer is not None,
+                    "off_pending": group.off_timer.active,
                     "warning": group.warning,
                 }
                 for kind, group in controller.groups.items()

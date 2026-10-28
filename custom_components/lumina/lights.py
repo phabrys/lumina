@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
@@ -16,10 +16,6 @@ from homeassistant.components.light import (
 from homeassistant.const import (
     SERVICE_TURN_ON,
 )
-from homeassistant.helpers.event import (
-    async_call_later,
-)
-from homeassistant.util import dt as dt_util
 
 from .base import (
     ActuatorGroup,
@@ -191,7 +187,6 @@ class LightControl(RoomBase):
                 **{ATTR_BRIGHTNESS: target},
             )
         group.warning = True
-        group.off_timer = async_call_later(self.hass, warning, on_end)
-        group.off_at = dt_util.utcnow() + timedelta(seconds=warning)
+        group.off_timer.start(self.hass, warning, on_end)
         self._log("lights_warning")
         return True

@@ -7,16 +7,14 @@ from typing import Any
 
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import (
-    CALLBACK_TYPE,
     Event,
     EventStateChangedData,
     State,
     callback,
 )
-from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt as dt_util
 
-from .base import INVALID_STATES, STATE_FIELD, ActuatorGroup, RoomBase, cancel_timer
+from .base import INVALID_STATES, STATE_FIELD, ActuatorGroup, RoomBase, Timer
 from .const import (
     BEDTIME_OVERRIDE,
     BEDTIME_UNTIL_VACANT,
@@ -61,8 +59,7 @@ class SleepControl(RoomBase):
         # Lumières éteintes à la main la nuit : contrôle manuel ou sommeil
         self.bedtime_gesture = BEDTIME_UNTIL_VACANT
         # Réveil du matin : le dormeur peut être encore au lit
-        self.wake_hold_until: datetime | None = None
-        self._wake_hold_timer: CALLBACK_TYPE | None = None
+        self._wake_hold = Timer()
         # Veilleuse allumée par Lumina pendant ce sommeil : l'éteindre à la
         # main est un refus qui tient jusqu'au réveil.
         self._night_light_lit = False
@@ -165,7 +162,6 @@ class SleepControl(RoomBase):
         self.sleeping_until = until
         for group in self.groups.values():
             if group.override_until_wake:
-                cancel_timer(group.override_timer)
                 self._arm_override(group, until)
 
     def _follow_night_end(self) -> None:
@@ -204,6 +200,11 @@ class SleepControl(RoomBase):
             and not self._still_watch()
         )
 
+    def _note_sleeper_presence(self) -> None:
+        """Présence détectée : en sommeil, elle rend la présomption possible."""
+        if self.sleeping:
+            self._sleep_presence_seen = True
+
     @property
     def sleep_presence_seen(self) -> bool:
         """Quelqu'un a-t-il été détecté depuis le début du sommeil ?"""
@@ -231,6 +232,11 @@ class SleepControl(RoomBase):
         return (self.sleeping and not self._still_watch()) or self.presumed_occupied
 
     # --- Réveil du matin --------------------------------------------------
+
+    @property
+    def wake_hold_until(self) -> datetime | None:
+        """Fin du répit du réveil, None hors réveil."""
+        return self._wake_hold.at
 
     @property
     def lights_held(self) -> bool:
@@ -261,20 +267,14 @@ class SleepControl(RoomBase):
 
         @callback
         def _hold_end(_now: datetime) -> None:
-            self._wake_hold_timer = None
-            self.wake_hold_until = None
             self._log("wake_hold_end")
             # Sans signe de vie depuis, l'absence déjà écoulée compte.
             self._reevaluate_with_vacancy_credit()
 
-        cancel_timer(self._wake_hold_timer)
-        self.wake_hold_until = until
-        self._wake_hold_timer = async_call_later(self.hass, until - dt_util.utcnow(), _hold_end)
+        self._wake_hold.start_at(self.hass, until, _hold_end)
 
     def _release_wake_hold(self) -> None:
-        cancel_timer(self._wake_hold_timer)
-        self._wake_hold_timer = None
-        self.wake_hold_until = None
+        self._wake_hold.cancel()
 
     # --- Événements -------------------------------------------------------
 

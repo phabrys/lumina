@@ -5,11 +5,10 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from homeassistant.const import SERVICE_TURN_OFF
-from homeassistant.core import CALLBACK_TYPE, callback
-from homeassistant.helpers.event import async_call_later
+from homeassistant.core import callback
 from homeassistant.util import dt as dt_util
 
-from .base import RoomBase, cancel_timer
+from .base import RoomBase, Timer
 from .const import (
     DAYLIGHT_OFF_DELAY,
     DAYLIGHT_RELOCK_DELAY,
@@ -31,8 +30,8 @@ class DaylightControl(RoomBase):
     def _init_daylight(self) -> None:
         # Lumière du jour : extinction différée, puis verrou d'allumage
         self.daylight_locked = False
-        self._daylight_timer: CALLBACK_TYPE | None = None
-        self._relock_timer: CALLBACK_TYPE | None = None
+        self._daylight_timer = Timer()
+        self._relock_timer = Timer()
         # Dernier avis du soleil (marges comprises), pour réagir à son changement
         self._sun_was_up: bool | None = None
 
@@ -82,13 +81,12 @@ class DaylightControl(RoomBase):
                 if self.illuminance is None:
                     # Le soleil ne vacille pas : pas de délai de confirmation.
                     self.daylight_locked = False
-                elif self._relock_timer is None:
-                    self._relock_timer = async_call_later(
+                elif not self._relock_timer.active:
+                    self._relock_timer.start(
                         self.hass, DAYLIGHT_RELOCK_DELAY, self._unlock_daylight
                     )
             else:
-                cancel_timer(self._relock_timer)
-                self._relock_timer = None
+                self._relock_timer.cancel()
 
         if (
             not self._daylight_enough()
@@ -96,20 +94,16 @@ class DaylightControl(RoomBase):
             or not group.active
             or not self._any_on(group)
         ):
-            cancel_timer(self._daylight_timer)
-            self._daylight_timer = None
+            self._daylight_timer.cancel()
             return
         if self.illuminance is None:
             # Marge du matin déjà écoulée : extinction sans attendre.
             self._daylight_off(dt_util.utcnow())
-        elif self._daylight_timer is None:
-            self._daylight_timer = async_call_later(
-                self.hass, DAYLIGHT_OFF_DELAY, self._daylight_off
-            )
+        elif not self._daylight_timer.active:
+            self._daylight_timer.start(self.hass, DAYLIGHT_OFF_DELAY, self._daylight_off)
 
     @callback
     def _daylight_off(self, _now: datetime) -> None:
-        self._daylight_timer = None
         group = self.groups[KIND_LIGHTS]
         if self._daylight_enough() and group.active and self._any_on(group):
             self._call(group, SERVICE_TURN_OFF)
@@ -122,15 +116,12 @@ class DaylightControl(RoomBase):
 
     @callback
     def _unlock_daylight(self, _now: datetime) -> None:
-        self._relock_timer = None
         self.daylight_locked = False
         self.async_reevaluate()
 
     def _reset_daylight(self) -> None:
-        cancel_timer(self._daylight_timer)
-        cancel_timer(self._relock_timer)
-        self._daylight_timer = None
-        self._relock_timer = None
+        self._daylight_timer.cancel()
+        self._relock_timer.cancel()
         self.daylight_locked = False
 
 

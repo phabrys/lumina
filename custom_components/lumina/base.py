@@ -52,10 +52,52 @@ def domain_of(entity_id: str) -> str:
     return entity_id.partition(".")[0]
 
 
-def cancel_timer(timer: CALLBACK_TYPE | None) -> None:
-    """Annule une minuterie, s'il y en a une."""
-    if timer is not None:
-        timer()
+class Timer:
+    """Minuterie qui connaît son échéance ; relancée, elle remplace la précédente."""
+
+    def __init__(self) -> None:
+        self._cancel: CALLBACK_TYPE | None = None
+        # Échéance de la minuterie en cours, None sans minuterie
+        self.at: datetime | None = None
+
+    @property
+    def active(self) -> bool:
+        return self._cancel is not None
+
+    def start(self, hass: HomeAssistant, delay: float, action: Callable[[datetime], None]) -> None:
+        """Lance `action` dans `delay` secondes."""
+        self._schedule(hass, delay, dt_util.utcnow() + timedelta(seconds=delay), action)
+
+    def start_at(
+        self, hass: HomeAssistant, when: datetime, action: Callable[[datetime], None]
+    ) -> None:
+        """Lance `action` à l'instant `when`."""
+        self._schedule(hass, when - dt_util.utcnow(), when, action)
+
+    def _schedule(
+        self,
+        hass: HomeAssistant,
+        delay: float | timedelta,
+        when: datetime,
+        action: Callable[[datetime], None],
+    ) -> None:
+        self.cancel()
+
+        @callback
+        def _fire(now: datetime) -> None:
+            # Écoulée : plus en cours quand `action` s'exécute (elle peut relancer).
+            self._cancel = None
+            self.at = None
+            action(now)
+
+        self._cancel = async_call_later(hass, delay, _fire)
+        self.at = when
+
+    def cancel(self) -> None:
+        if self._cancel is not None:
+            self._cancel()
+        self._cancel = None
+        self.at = None
 
 
 # eq=False : chaque groupe est un objet unique, comparé par identité.
@@ -70,11 +112,10 @@ class ActuatorGroup:
     enabled: bool = True
     # Tous allumés, ou seulement si aucun ne l'est déjà
     mode: str = MODE_ALL
-    override_until: datetime | None = None
-    off_timer: CALLBACK_TYPE | None = None
-    # Échéance de l'extinction programmée (ou de la fin de l'avertissement)
-    off_at: datetime | None = None
-    override_timer: CALLBACK_TYPE | None = None
+    # Extinction programmée (ou fin de l'avertissement)
+    off_timer: Timer = field(default_factory=Timer)
+    # Fin de la reprise manuelle
+    override_timer: Timer = field(default_factory=Timer)
     # Instant (horloge de la boucle) du début de la reprise manuelle
     override_started: float | None = None
     # Reprise manuelle qui tient jusqu'à la fin du sommeil
@@ -82,18 +123,23 @@ class ActuatorGroup:
     # Reprise due à un allumage à la main (elle garde la durée réglée)
     override_turned_on: bool = False
     # Entrée de journal différée de la reprise manuelle
-    override_log_timer: CALLBACK_TYPE | None = None
+    override_log_timer: Timer = field(default_factory=Timer)
     # Lumières baissées en attendant l'extinction
     warning: bool = False
     # Luminosité (0-255) de chaque lumière avant l'avertissement
     saved_brightness: dict[str, int | None] = field(default_factory=dict)
     # Dernière bascule marche/arrêt due à la température (ventilateurs)
     last_temp_switch: float | None = None
-    cycle_timer: CALLBACK_TYPE | None = None
+    cycle_timer: Timer = field(default_factory=Timer)
+
+    @property
+    def override_until(self) -> datetime | None:
+        """Échéance de la reprise manuelle, None sans reprise."""
+        return self.override_timer.at
 
     @property
     def overridden(self) -> bool:
-        return self.override_until is not None
+        return self.override_timer.active
 
     @property
     def active(self) -> bool:
@@ -101,25 +147,16 @@ class ActuatorGroup:
         return bool(self.entity_ids) and self.enabled and not self.overridden
 
     def cancel_off_timer(self) -> None:
-        cancel_timer(self.off_timer)
-        self.off_timer = None
-        self.off_at = None
+        self.off_timer.cancel()
         self.warning = False
         self.saved_brightness = {}
 
     def clear_override(self) -> None:
-        cancel_timer(self.override_timer)
-        self.override_timer = None
-        self.override_until = None
+        self.override_timer.cancel()
         self.override_started = None
         self.override_until_wake = False
         self.override_turned_on = False
-        cancel_timer(self.override_log_timer)
-        self.override_log_timer = None
-
-    def cancel_cycle_timer(self) -> None:
-        cancel_timer(self.cycle_timer)
-        self.cycle_timer = None
+        self.override_log_timer.cancel()
 
 
 def _expected_fields(domain: str, service: str, data: dict[str, Any]) -> dict[str, Any]:
@@ -206,6 +243,14 @@ class RoomBase(ABC):
     @abstractmethod
     def _presence_for_sleep(self) -> bool:
         """Quelqu'un est-il (ou était-il à l'instant) dans la pièce ?"""
+
+    @abstractmethod
+    def _note_sleeper_presence(self) -> None:
+        """Présence détectée : retenue si la pièce dort."""
+
+    @abstractmethod
+    def _room_vacated(self) -> None:
+        """Pièce vide confirmée : sommeil, reprises manuelles et lumière du jour."""
 
     @abstractmethod
     def _wake_if_due(self) -> bool:
@@ -361,18 +406,15 @@ class RoomBase(ABC):
 
         @callback
         def _end_override(_now: datetime) -> None:
-            group.override_timer = None
             if group.override_until_wake and self._wake_if_due():
                 return  # le réveil a levé ce geste avec les autres
-            group.override_until = None
             group.override_started = None
             group.override_until_wake = False
             group.override_turned_on = False
             self._log(f"{group.kind}_override_end")
             self.async_reevaluate()
 
-        group.override_until = until
-        group.override_timer = async_call_later(self.hass, until - dt_util.utcnow(), _end_override)
+        group.override_timer.start_at(self.hass, until, _end_override)
         self._notify()
 
     # --- Commandes ---------------------------------------------------------

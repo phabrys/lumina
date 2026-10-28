@@ -17,9 +17,6 @@ from homeassistant.const import (
 from homeassistant.core import (
     callback,
 )
-from homeassistant.helpers.event import (
-    async_call_later,
-)
 
 from .base import (
     ActuatorGroup,
@@ -117,18 +114,17 @@ class FanControl(RoomBase):
         remaining = FAN_MIN_CYCLE - (self.hass.loop.time() - group.last_temp_switch)
         if remaining <= 0:
             return False
-        if group.cycle_timer is None:
+        if not group.cycle_timer.active:
 
             @callback
             def _retry(_now: datetime) -> None:
-                group.cycle_timer = None
                 # Le cycle minimal est écoulé : la prochaine bascule est permise.
                 group.last_temp_switch = None
                 if self.occupied_or_presumed:
                     self._evaluate_fans()
                 self._notify()
 
-            group.cycle_timer = async_call_later(self.hass, remaining, _retry)
+            group.cycle_timer.start(self.hass, remaining, _retry)
         return True
 
     def _fan_percentage(self, temp: float | None, threshold: float) -> int | None:

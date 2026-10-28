@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from datetime import datetime, time, timedelta
-import logging
 from typing import Any
 
 from homeassistant.components.climate import ATTR_FAN_MODE, ATTR_PRESET_MODE
@@ -24,9 +23,7 @@ from homeassistant.core import (
     HomeAssistant,
     callback,
 )
-from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import (
-    async_call_later,
     async_track_state_change_event,
     async_track_time_change,
 )
@@ -37,7 +34,6 @@ from .base import (
     INVALID_STATES,
     STATE_FIELD,
     ActuatorGroup,
-    cancel_timer,
 )
 from .climate_control import ClimateControl
 from .const import (
@@ -58,19 +54,11 @@ from .const import (
     DEFAULT_CLIMATE_ACTIONS,
     DEFAULT_SETTINGS,
     DEFAULT_TIMES,
-    DOMAIN,
     FANS_WITH_CLIMATE_NORMAL,
-    HOLD_INACTIVE_STATES,
-    ISSUE_PRESENCE_UNAVAILABLE,
     KIND_CLIMATE,
     KIND_FANS,
     KIND_LIGHTS,
-    NIGHT_END_TIMES,
     OVERRIDE_DEBOUNCE,
-    PERIOD_DAY,
-    PERIOD_EVENING,
-    PERIOD_NIGHT,
-    PRESENCE_ISSUE_DELAY,
     ROOM_OCCUPIED,
     ROOM_OVERRIDE,
     ROOM_SLEEPING,
@@ -82,23 +70,19 @@ from .const import (
     SETTING_NIGHT_FAN_OFF_DELAY,
     SETTING_NIGHT_LIGHT_OFF_DELAY,
     SETTING_OVERRIDE_DURATION,
-    SETTING_VACANCY_CONFIRM,
     SLEEP_ENTITY,
     SLEEP_LIGHTS_OFF,
-    SLEEP_RECENT_PRESENCE,
     SUN_BELOW_HORIZON,
     SUN_ENTITY,
-    TIME_EVENING_START,
-    TIME_NIGHT_START,
     WAKE_VACANT,
 )
 from .daylight import DaylightControl
 from .days import DayControl
 from .fans import FanControl
 from .lights import LightControl
+from .periods import PeriodControl
+from .presence import PresenceControl
 from .sleep import SleepControl
-
-_LOGGER = logging.getLogger(__name__)
 
 # Attributs dont un changement manuel vaut reprise, en plus de l'état
 _OVERRIDE_ATTRIBUTES: dict[str, tuple[str, ...]] = {
@@ -107,17 +91,15 @@ _OVERRIDE_ATTRIBUTES: dict[str, tuple[str, ...]] = {
 }
 
 
-def _within(start: time, end: time, moment: time) -> bool:
-    """`moment` dans la plage [start, end[, éventuellement à cheval sur minuit."""
-    if start == end:
-        return False
-    if start < end:
-        return start <= moment < end
-    return moment >= start or moment < end
-
-
 class RoomController(
-    LightControl, FanControl, SleepControl, ClimateControl, DaylightControl, DayControl
+    LightControl,
+    FanControl,
+    SleepControl,
+    ClimateControl,
+    DaylightControl,
+    DayControl,
+    PresenceControl,
+    PeriodControl,
 ):
     """Pilote les lumières, ventilateurs et clims d'une pièce.
 
@@ -163,15 +145,12 @@ class RoomController(
         entry_id: str | None = None,
     ) -> None:
         super().__init__(hass, name)
-        self.presence: list[str] = list(config.get(CONF_PRESENCE, []))
-        self.presence_still: list[str] = [
-            e for e in config.get(CONF_PRESENCE_STILL) or [] if e in self.presence
-        ]
-        # Panne de détecteur signalée dans les Réparations, propre à la pièce
-        self._issue_id = f"{ISSUE_PRESENCE_UNAVAILABLE}_{entry_id or name}"
-        self._issue_timer: CALLBACK_TYPE | None = None
-        self._issue_raised = False
-        self.presence_hold: list[str] = list(config.get(CONF_PRESENCE_HOLD, []))
+        self._init_presence(
+            list(config.get(CONF_PRESENCE, [])),
+            list(config.get(CONF_PRESENCE_STILL) or []),
+            list(config.get(CONF_PRESENCE_HOLD, [])),
+            entry_id or name,
+        )
         self.illuminance: str | None = config.get(CONF_ILLUMINANCE)
         self.temperature: str | None = config.get(CONF_TEMPERATURE)
         self.humidity: str | None = config.get(CONF_HUMIDITY)
@@ -197,26 +176,13 @@ class RoomController(
         }
         self.settings: dict[str, float] = dict(DEFAULT_SETTINGS)
         self.times: dict[str, time] = dict(DEFAULT_TIMES)
-        self.forced_night = False
-        self.forced_night_until: datetime | None = None
+        self._init_periods()
         self._init_sleep(config.get(CONF_SLEEP))
         self._init_days(config.get(CONF_WORKDAY), list(config.get(CONF_HOLIDAYS) or []))
         self._init_climate(dict(DEFAULT_CLIMATE_ACTIONS))
         self._init_daylight()
         # Ventilateurs pendant que la clim tourne
         self.fans_with_climate = FANS_WITH_CLIMATE_NORMAL
-        self.period = PERIOD_DAY
-        self._natural_period = PERIOD_DAY
-        self.occupied = False
-        # Confirmation d'absence en cours, et instant où la présence a cessé
-        self._vacancy_timer: CALLBACK_TYPE | None = None
-        self._vacancy_at: datetime | None = None
-        self._presence_lost_at: float | None = None
-        # Début (horloge de la boucle) de l'absence en cours, s'il est connu
-        self._vacant_since: float | None = None
-        # Temps déjà écoulé depuis la fin de présence, déduit des délais
-        # d'extinction programmés au moment où l'absence est confirmée
-        self._off_delay_credit = 0.0
         self._unsubs: list[CALLBACK_TYPE] = []
 
     @property
@@ -239,11 +205,6 @@ class RoomController(
     # ------------------------------------------------------------------
     # Cycle de vie
     # ------------------------------------------------------------------
-
-    @callback
-    def restore_occupied(self) -> None:
-        """Pièce occupée avant le redémarrage : le maintien peut prolonger l'occupation."""
-        self.occupied = True
 
     @callback
     def restore_override(self, kind: str, until: datetime, *, until_wake: bool) -> None:
@@ -270,8 +231,7 @@ class RoomController(
         # Home Assistant : les médias n'ont peut-être pas encore repris leur état.
         if not self.occupied:
             self.occupied = self._compute_occupied()
-        self._natural_period = self._compute_natural_period()
-        self.period = self._effective_period()
+        self._update_period()
         self._unsubs.append(async_track_time_change(self.hass, self._on_minute, second=0))
         self._unsubs.append(async_at_started(self.hass, self._on_started))
         self._schedule_day_kinds()
@@ -287,12 +247,10 @@ class RoomController(
         for group in self.groups.values():
             group.cancel_off_timer()
             group.clear_override()
-            group.cancel_cycle_timer()
+            group.cycle_timer.cancel()
         self._reset_daylight()
-        self._cancel_vacancy()
+        self._stop_presence()
         self._release_wake_hold()
-        cancel_timer(self._issue_timer)
-        self._issue_timer = None
 
     def _track(
         self,
@@ -345,52 +303,14 @@ class RoomController(
         self.settings[key] = value
         self._refresh(reevaluate)
 
-    @callback
-    def update_time(self, key: str, value: time, *, reevaluate: bool = True) -> None:
-        changed = self.times[key] != value
-        self.times[key] = value
-        if changed and key in NIGHT_END_TIMES:
-            self._night_end_moved()
-        else:
-            self._natural_period = self._compute_natural_period()
-            self.period = self._effective_period()
-        self._refresh(reevaluate)
-
     def _night_end_moved(self) -> None:
         """Nouvelle fin de nuit, appliquée le jour de l'échéance en cours.
 
         Déjà passée, la nuit forcée et le sommeil prennent fin tout de suite.
         """
-        if self.forced_night and self.forced_night_until is not None:
-            until = self._moved_night_end(self.forced_night_until)
-            self.forced_night = until > dt_util.utcnow()
-            self.forced_night_until = until if self.forced_night else None
+        self._move_forced_night_end()
         self._follow_night_end()
-        self._natural_period = self._compute_natural_period()
-        self.period = self._effective_period()
-
-    @callback
-    def set_forced_night(
-        self,
-        forced: bool,
-        *,
-        until: datetime | None = None,
-        reevaluate: bool = True,
-    ) -> None:
-        """Force la nuit jusqu'à la prochaine heure de fin de nuit."""
-        if forced and until is None:
-            until = self._next_night_end()
-        if forced and until is not None and until <= dt_util.utcnow():
-            forced = False  # échéance déjà passée (restauration tardive)
-        if forced == self.forced_night and until == self.forced_night_until:
-            return
-        self.forced_night = forced
-        self.forced_night_until = until if forced else None
-        previous = self.period
-        self.period = self._effective_period()
-        if reevaluate and self.period != previous:
-            self._log("night_forced" if forced else f"{self.period}_restored")
-        self._refresh(reevaluate)
+        self._update_period()
 
     @callback
     def set_mode(self, kind: str, mode: str, *, reevaluate: bool = True) -> None:
@@ -447,23 +367,23 @@ class RoomController(
             "fans_mode": fans.mode,
             "daylight_locked": self.daylight_locked,
             "occupied": self.occupied,
-            "vacancy_pending": self._vacancy_timer is not None,
-            "vacancy_at": self._vacancy_at,
+            "vacancy_pending": self._vacancy.active,
+            "vacancy_at": self._vacancy.at,
             "presence_hold_active": self._hold_active(),
             "effective_temperature": self._effective_temperature(),
             "lights_override_until": lights.override_until,
             "fans_override_until": fans.override_until,
-            "lights_off_pending": lights.off_timer is not None,
-            "lights_off_at": lights.off_at,
-            "fans_off_at": fans.off_at,
+            "lights_off_pending": lights.off_timer.active,
+            "lights_off_at": lights.off_timer.at,
+            "fans_off_at": fans.off_timer.at,
             "lights_warning": lights.warning,
-            "fans_off_pending": fans.off_timer is not None,
+            "fans_off_pending": fans.off_timer.active,
             "climate_override_until": climate.override_until,
             # Contrôles manuels qui tiennent jusqu'à la fin du sommeil
             "overrides_until_wake": overrides_until_wake,
             "climate_running": self._climate_running(),
             "climate_vacant_action": self._climate_action(),
-            "climate_vacant_at": climate.off_at,
+            "climate_vacant_at": climate.off_timer.at,
             "climate_vacant_applied": self._climate_saved_action,
             "fans_with_climate": self.fans_with_climate,
             # Entités de la pièce, pour les cartes et les tableaux de bord
@@ -520,116 +440,12 @@ class RoomController(
                     continue
                 if (
                     group.active
-                    and group.off_timer is None
+                    and not group.off_timer.active
                     and self._any_on(group)
                     and self._needs_vacant_action(group)
                 ):
                     self._schedule_off(group)
         self._notify()
-
-    def _compute_natural_period(self) -> str:
-        """Jour, soirée ou nuit selon les plages réglées.
-
-        Début = fin de nuit : pas de nuit. Début de soirée = début de nuit, ou
-        pris dans la nuit : pas de soirée.
-        """
-        local = dt_util.now()
-        start = self.times[TIME_NIGHT_START]
-        end = self.night_end_on(local.date())
-        evening = self.times[TIME_EVENING_START]
-        now = local.time().replace(tzinfo=None)
-        if _within(start, end, now):
-            return PERIOD_NIGHT
-        if not _within(start, end, evening) and _within(evening, start, now):
-            return PERIOD_EVENING
-        return PERIOD_DAY
-
-    def _effective_period(self) -> str:
-        return PERIOD_NIGHT if self.forced_night else self._natural_period
-
-    def _compute_occupied(self) -> bool:
-        if any(self._is_on(entity_id) for entity_id in self.presence):
-            return True
-        # Le maintien prolonge une occupation, il ne la déclenche pas.
-        return self.occupied and self._hold_active()
-
-    def _dead_presence(self) -> list[str]:
-        """Détecteurs de présence sans état exploitable."""
-        return [
-            entity_id
-            for entity_id in self.presence
-            if (state := self.hass.states.get(entity_id)) is None or state.state in INVALID_STATES
-        ]
-
-    def _still_watch(self) -> bool:
-        """Un détecteur qui voit les personnes immobiles répond-il ?"""
-        dead = self._dead_presence()
-        return any(entity_id not in dead for entity_id in self.presence_still)
-
-    def _presence_for_sleep(self) -> bool:
-        """Quelqu'un est-il dans la pièce, pour une entité de sommeil qui s'active ?
-
-        Un détecteur qui voit l'immobilité doit le voir maintenant ; à défaut
-        (PIR), une présence récente suffit, le dormeur a pu cesser de bouger.
-        Sans détecteur exploitable, l'entité est crue.
-        """
-        if self.occupied or not self.presence or self._presence_unknown():
-            return True
-        if self._still_watch():
-            return False
-        return (
-            self._vacant_since is None
-            or self.hass.loop.time() - self._vacant_since <= SLEEP_RECENT_PRESENCE
-        )
-
-    def _check_presence_health(self) -> None:
-        """Signale dans les Réparations un détecteur muet depuis une heure."""
-        if not self._dead_presence():
-            cancel_timer(self._issue_timer)
-            self._issue_timer = None
-            if self._issue_raised:
-                ir.async_delete_issue(self.hass, DOMAIN, self._issue_id)
-                self._issue_raised = False
-            return
-        if self._issue_raised or self._issue_timer is not None:
-            return
-
-        @callback
-        def _raise(_now: datetime) -> None:
-            self._issue_timer = None
-            dead = self._dead_presence()
-            if not dead:
-                return
-            names = []
-            for entity_id in dead:
-                state = self.hass.states.get(entity_id)
-                names.append(state.name if state is not None else entity_id)
-            ir.async_create_issue(
-                self.hass,
-                DOMAIN,
-                self._issue_id,
-                is_fixable=False,
-                severity=ir.IssueSeverity.WARNING,
-                translation_key=ISSUE_PRESENCE_UNAVAILABLE,
-                translation_placeholders={"room": self.name, "sensors": ", ".join(names)},
-            )
-            self._issue_raised = True
-
-        self._issue_timer = async_call_later(self.hass, PRESENCE_ISSUE_DELAY, _raise)
-
-    def _presence_unknown(self) -> bool:
-        """Les détecteurs existent mais aucun ne donne d'état exploitable."""
-        states = [self.hass.states.get(entity_id) for entity_id in self.presence]
-        return any(state is not None for state in states) and all(
-            state is None or state.state in INVALID_STATES for state in states
-        )
-
-    def _hold_active(self) -> bool:
-        return any(
-            (state := self.hass.states.get(entity_id)) is not None
-            and state.state not in HOLD_INACTIVE_STATES
-            for entity_id in self.presence_hold
-        )
 
     def _is_dark(self) -> bool:
         """Fait-il assez sombre pour allumer ?"""
@@ -667,15 +483,13 @@ class RoomController(
 
     def _schedule_off(self, group: ActuatorGroup) -> None:
         group.cancel_off_timer()
-        group.cancel_cycle_timer()
+        group.cycle_timer.cancel()
         delay = self._setting(group.off_delay_key, group.night_off_delay_key)
         # Le délai court depuis la fin réelle de présence, pas depuis la confirmation.
         delay = max(delay - self._off_delay_credit, 0)
 
         @callback
         def _delay_elapsed(_now: datetime) -> None:
-            group.off_timer = None
-            group.off_at = None
             if (
                 self.occupied
                 or self._keeps_running(group)
@@ -691,8 +505,6 @@ class RoomController(
 
         @callback
         def _final_off(_now: datetime) -> None:
-            group.off_timer = None
-            group.off_at = None
             group.warning = False
             group.saved_brightness = {}
             if (
@@ -704,8 +516,7 @@ class RoomController(
                 self._turn_off(group)
             self._notify()
 
-        group.off_timer = async_call_later(self.hass, delay, _delay_elapsed)
-        group.off_at = dt_util.utcnow() + timedelta(seconds=delay)
+        group.off_timer.start(self.hass, delay, _delay_elapsed)
 
     def _turn_off(self, group: ActuatorGroup) -> None:
         if group.kind == KIND_CLIMATE:
@@ -718,72 +529,8 @@ class RoomController(
     # Gestion des événements
     # ------------------------------------------------------------------
 
-    @callback
-    def _on_presence(self, event: Event[EventStateChangedData]) -> None:
-        new_state = event.data["new_state"]
-        is_detector = event.data["entity_id"] in self.presence
-        if is_detector:
-            self._check_presence_health()
-        if is_detector and (new_state is None or new_state.state in INVALID_STATES):
-            # Détecteur muet (redémarrage de Zigbee2MQTT…) : il ne dit pas que
-            # la pièce est vide, l'occupation en cours est conservée.
-            self._notify()
-            return
-        present = self._compute_occupied()
-        if present:
-            # Présence (re)détectée : une éventuelle confirmation d'absence tombe.
-            self._cancel_vacancy()
-            if self.sleeping:
-                self._sleep_presence_seen = True
-            if not self.occupied:
-                self.occupied = True
-                self._vacant_since = None
-                _LOGGER.debug("%s : pièce occupée", self.name)
-                self.async_reevaluate()
-            else:
-                self._notify()
-            return
-
-        if not self.occupied:
-            self._notify()  # l'état du maintien a pu changer
-            return
-        self._presence_lost()
-
-    def _presence_lost(self) -> None:
-        """Plus personne de détecté : la pièce se vide après confirmation."""
-        confirm = self.settings[SETTING_VACANCY_CONFIRM]
-        if confirm <= 0:
-            self._presence_lost_at = self.hass.loop.time()
-            self._set_vacant()
-            return
-        if self._vacancy_timer is None:
-            self._presence_lost_at = self.hass.loop.time()
-            self._vacancy_at = dt_util.utcnow() + timedelta(seconds=confirm)
-            self._vacancy_timer = async_call_later(self.hass, confirm, self._confirm_vacancy)
-        self._notify()
-
-    @callback
-    def _confirm_vacancy(self, _now: datetime) -> None:
-        self._vacancy_timer = None
-        self._vacancy_at = None
-        if self._compute_occupied() or self._presence_unknown():
-            # Détecteurs devenus muets pendant la confirmation : rien ne dit
-            # que la pièce est vide, l'occupation est conservée.
-            self._presence_lost_at = None
-            self._notify()
-            return
-        self._set_vacant()
-
-    def _cancel_vacancy(self) -> None:
-        cancel_timer(self._vacancy_timer)
-        self._vacancy_timer = None
-        self._vacancy_at = None
-        self._presence_lost_at = None
-
-    def _set_vacant(self) -> None:
-        """Pièce vide confirmée : levée des reprises manuelles, extinctions."""
-        self.occupied = False
-        _LOGGER.debug("%s : pièce vide", self.name)
+    def _room_vacated(self) -> None:
+        """Pièce vide confirmée : réveil éventuel, levée des reprises manuelles."""
         if (
             self.sleeping
             and self.sleep_source == SLEEP_LIGHTS_OFF
@@ -805,18 +552,6 @@ class RoomController(
             if not keep:
                 group.clear_override()
         self._reset_daylight()
-        self._vacant_since = self._presence_lost_at
-        self._presence_lost_at = None
-        self._reevaluate_with_vacancy_credit()
-
-    def _reevaluate_with_vacancy_credit(self) -> None:
-        """Réévalue en déduisant des délais d'extinction l'absence déjà écoulée."""
-        if not self.occupied and self._vacant_since is not None:
-            self._off_delay_credit = max(self.hass.loop.time() - self._vacant_since, 0.0)
-        try:
-            self.async_reevaluate()
-        finally:
-            self._off_delay_credit = 0.0
 
     @callback
     def _on_minute(self, now: datetime) -> None:
@@ -841,20 +576,12 @@ class RoomController(
 
     def _follow_clock(self) -> None:
         """Fin de la nuit forcée, réveil et période à l'heure qu'il est."""
-        if (
-            self.forced_night
-            and self.forced_night_until is not None
-            and dt_util.utcnow() >= self.forced_night_until
-        ):
-            # Heure de fin de nuit atteinte : le forçage s'arrête de lui-même.
-            self.forced_night = False
-            self.forced_night_until = None
+        self._expire_forced_night()
         woke = self._check_sleep_end()
-        self._natural_period = self._compute_natural_period()
-        period = self._effective_period()
-        changed = period != self.period
+        previous = self.period
+        self._update_period()
+        changed = self.period != previous
         if changed:
-            self.period = period
             self._log(f"{self.period}_started")
         if woke or changed:
             self._reevaluate_with_vacancy_credit()
@@ -928,7 +655,7 @@ class RoomController(
             return
         group.clear_override()
         group.cancel_off_timer()
-        group.cancel_cycle_timer()
+        group.cycle_timer.cancel()
         if group.kind == KIND_CLIMATE:
             self._clear_climate_saved()  # la clim est reprise en main
         if group.kind == KIND_LIGHTS:
@@ -964,9 +691,7 @@ class RoomController(
 
         @callback
         def _log_override(_now: datetime) -> None:
-            group.override_log_timer = None
             if group.override_started == started and not group.override_until_wake:
                 self._log(f"{group.kind}_override", minutes=minutes)
 
-        cancel_timer(group.override_log_timer)
-        group.override_log_timer = async_call_later(self.hass, OVERRIDE_DEBOUNCE, _log_override)
+        group.override_log_timer.start(self.hass, OVERRIDE_DEBOUNCE, _log_override)
