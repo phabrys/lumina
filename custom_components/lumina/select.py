@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from homeassistant.components.select import SelectEntity
+from collections.abc import Callable
+from dataclasses import dataclass
+
+from homeassistant.components.select import SelectEntity, SelectEntityDescription
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -21,7 +24,70 @@ from .const import (
     SELECT_CLIMATE_VACANT_DAY,
     SELECT_CLIMATE_VACANT_NIGHT,
 )
+from .controller import RoomController
 from .entity import LuminaEntity
+
+
+def _has(*kinds: str) -> Callable[[RoomController], bool]:
+    """Condition d'existence : la pièce a des appareils de chacun de ces groupes."""
+    return lambda controller: all(controller.groups[kind].entity_ids for kind in kinds)
+
+
+@dataclass(frozen=True, kw_only=True)
+class LuminaSelectDescription(SelectEntityDescription):
+    """Description d'un choix : lecture, écriture et condition d'existence."""
+
+    current: Callable[[RoomController], str]
+    # (contrôleur, option, réévaluer)
+    select: Callable[[RoomController, str, bool], None]
+    requires: Callable[[RoomController], bool] | None = None
+
+
+def _mode(kind: str) -> LuminaSelectDescription:
+    """Tous les actionneurs du groupe, ou seulement si aucun n'est déjà allumé."""
+    return LuminaSelectDescription(
+        key=f"{kind}_mode",
+        options=MODES,
+        current=lambda c: c.groups[kind].mode,
+        select=lambda c, option, reevaluate: c.set_mode(kind, option, reevaluate=reevaluate),
+        requires=_has(kind),
+    )
+
+
+def _climate_action(key: str) -> LuminaSelectDescription:
+    """Action sur les clims quand la pièce est vide, le jour ou la nuit."""
+    return LuminaSelectDescription(
+        key=key,
+        options=CLIMATE_ACTIONS,
+        current=lambda c: c.climate_actions[key],
+        select=lambda c, option, reevaluate: c.set_climate_action(
+            key, option, reevaluate=reevaluate
+        ),
+        requires=_has(KIND_CLIMATE),
+    )
+
+
+SELECTS: tuple[LuminaSelectDescription, ...] = (
+    _mode(KIND_LIGHTS),
+    _mode(KIND_FANS),
+    _climate_action(SELECT_CLIMATE_VACANT_DAY),
+    _climate_action(SELECT_CLIMATE_VACANT_NIGHT),
+    # Ventilateurs pendant que la clim tourne : normaux, en brassage ou arrêtés
+    LuminaSelectDescription(
+        key="fans_with_climate",
+        options=FANS_WITH_CLIMATE_MODES,
+        current=lambda c: c.fans_with_climate,
+        select=lambda c, option, reevaluate: c.set_fans_with_climate(option, reevaluate=reevaluate),
+        requires=_has(KIND_CLIMATE, KIND_FANS),
+    ),
+    # Lumières éteintes à la main la nuit : contrôle manuel, ou sommeil
+    LuminaSelectDescription(
+        key=SELECT_BEDTIME,
+        options=BEDTIME_MODES,
+        current=lambda c: c.bedtime_gesture,
+        select=lambda c, option, reevaluate: c.set_bedtime_gesture(option, reevaluate=reevaluate),
+    ),
+)
 
 
 async def async_setup_entry(
@@ -29,112 +95,33 @@ async def async_setup_entry(
     entry: LuminaConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    groups = entry.runtime_data.groups
-    entities: list[SelectEntity] = [
-        LuminaModeSelect(entry, kind)
-        for kind in (KIND_LIGHTS, KIND_FANS)
-        if groups[kind].entity_ids
-    ]
-    if groups[KIND_CLIMATE].entity_ids:
-        entities.extend(
-            LuminaClimateActionSelect(entry, key)
-            for key in (SELECT_CLIMATE_VACANT_DAY, SELECT_CLIMATE_VACANT_NIGHT)
-        )
-        if groups[KIND_FANS].entity_ids:
-            entities.append(LuminaFansWithClimateSelect(entry))
-    entities.append(LuminaBedtimeSelect(entry))
-    async_add_entities(entities)
+    controller = entry.runtime_data
+    async_add_entities(
+        LuminaSelect(entry, description)
+        for description in SELECTS
+        if description.requires is None or description.requires(controller)
+    )
 
 
-class LuminaModeSelect(LuminaEntity, SelectEntity, RestoreEntity):
-    """Tous les actionneurs du groupe, ou seulement si aucun n'est déjà allumé."""
+class LuminaSelect(LuminaEntity, SelectEntity, RestoreEntity):
+    """Choix de comportement de la pièce, restauré après redémarrage."""
 
-    _attr_options = MODES
     _attr_entity_category = EntityCategory.CONFIG
+    entity_description: LuminaSelectDescription
 
-    def __init__(self, entry: LuminaConfigEntry, kind: str) -> None:
-        super().__init__(entry, f"{kind}_mode")
-        self._kind = kind
+    def __init__(self, entry: LuminaConfigEntry, description: LuminaSelectDescription) -> None:
+        super().__init__(entry, description.key)
+        self.entity_description = description
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
         last_state = await self.async_get_last_state()
-        if last_state is not None and last_state.state in MODES:
-            self._controller.set_mode(self._kind, last_state.state, reevaluate=False)
+        if last_state is not None and last_state.state in self.options:
+            self.entity_description.select(self._controller, last_state.state, False)
 
     @property
     def current_option(self) -> str:
-        return self._controller.groups[self._kind].mode
+        return self.entity_description.current(self._controller)
 
     async def async_select_option(self, option: str) -> None:
-        self._controller.set_mode(self._kind, option)
-
-
-class LuminaClimateActionSelect(LuminaEntity, SelectEntity, RestoreEntity):
-    """Action sur les clims quand la pièce est vide, le jour ou la nuit."""
-
-    _attr_options = CLIMATE_ACTIONS
-    _attr_entity_category = EntityCategory.CONFIG
-
-    def __init__(self, entry: LuminaConfigEntry, key: str) -> None:
-        super().__init__(entry, key)
-        self._key = key
-
-    async def async_added_to_hass(self) -> None:
-        await super().async_added_to_hass()
-        last_state = await self.async_get_last_state()
-        if last_state is not None and last_state.state in CLIMATE_ACTIONS:
-            self._controller.set_climate_action(self._key, last_state.state, reevaluate=False)
-
-    @property
-    def current_option(self) -> str:
-        return self._controller.climate_actions[self._key]
-
-    async def async_select_option(self, option: str) -> None:
-        self._controller.set_climate_action(self._key, option)
-
-
-class LuminaFansWithClimateSelect(LuminaEntity, SelectEntity, RestoreEntity):
-    """Ventilateurs pendant que la clim tourne : normaux, en brassage ou arrêtés."""
-
-    _attr_options = FANS_WITH_CLIMATE_MODES
-    _attr_entity_category = EntityCategory.CONFIG
-
-    def __init__(self, entry: LuminaConfigEntry) -> None:
-        super().__init__(entry, "fans_with_climate")
-
-    async def async_added_to_hass(self) -> None:
-        await super().async_added_to_hass()
-        last_state = await self.async_get_last_state()
-        if last_state is not None and last_state.state in FANS_WITH_CLIMATE_MODES:
-            self._controller.set_fans_with_climate(last_state.state, reevaluate=False)
-
-    @property
-    def current_option(self) -> str:
-        return self._controller.fans_with_climate
-
-    async def async_select_option(self, option: str) -> None:
-        self._controller.set_fans_with_climate(option)
-
-
-class LuminaBedtimeSelect(LuminaEntity, SelectEntity, RestoreEntity):
-    """Lumières éteintes à la main la nuit : contrôle manuel, ou sommeil."""
-
-    _attr_options = BEDTIME_MODES
-    _attr_entity_category = EntityCategory.CONFIG
-
-    def __init__(self, entry: LuminaConfigEntry) -> None:
-        super().__init__(entry, SELECT_BEDTIME)
-
-    async def async_added_to_hass(self) -> None:
-        await super().async_added_to_hass()
-        last_state = await self.async_get_last_state()
-        if last_state is not None and last_state.state in BEDTIME_MODES:
-            self._controller.set_bedtime_gesture(last_state.state, reevaluate=False)
-
-    @property
-    def current_option(self) -> str:
-        return self._controller.bedtime_gesture
-
-    async def async_select_option(self, option: str) -> None:
-        self._controller.set_bedtime_gesture(option)
+        self.entity_description.select(self._controller, option, True)

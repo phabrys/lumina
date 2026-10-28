@@ -8,7 +8,7 @@ from homeassistant.const import SERVICE_TURN_OFF
 from homeassistant.core import callback
 from homeassistant.util import dt as dt_util
 
-from .base import RoomBase, Timer
+from .base import RoomBase, Timer, parse_datetime
 from .const import (
     DAYLIGHT_OFF_DELAY,
     DAYLIGHT_RELOCK_DELAY,
@@ -45,11 +45,11 @@ class DaylightControl(RoomBase):
         if sun is None or sun.state != SUN_ABOVE_HORIZON:
             return False
         now = dt_util.utcnow()
-        setting = _parse(sun.attributes.get(SUN_NEXT_SETTING))
+        setting = parse_datetime(sun.attributes.get(SUN_NEXT_SETTING))
         advance = timedelta(minutes=self.settings[SETTING_SUNSET_ADVANCE])
         if setting is not None and now >= setting - advance:
             return False
-        rising = _parse(sun.attributes.get(SUN_NEXT_RISING))
+        rising = parse_datetime(sun.attributes.get(SUN_NEXT_RISING))
         delay = timedelta(minutes=self.settings[SETTING_SUNRISE_DELAY])
         return rising is None or now >= rising - timedelta(days=1) + delay
 
@@ -123,10 +123,3 @@ class DaylightControl(RoomBase):
         self._daylight_timer.cancel()
         self._relock_timer.cancel()
         self.daylight_locked = False
-
-
-def _parse(value: object) -> datetime | None:
-    """Heure du soleil lue dans ses attributs (texte ISO ou datetime)."""
-    if isinstance(value, datetime):
-        return value
-    return dt_util.parse_datetime(value) if isinstance(value, str) else None

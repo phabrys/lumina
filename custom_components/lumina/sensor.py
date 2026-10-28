@@ -13,9 +13,9 @@ from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
-from homeassistant.util import dt as dt_util
 
 from . import LuminaConfigEntry
+from .base import parse_datetime
 from .const import KIND_CLIMATE, KIND_FANS, KIND_LIGHTS, ROOM_STATES
 from .entity import LuminaEntity
 
@@ -52,18 +52,16 @@ class LuminaRoomStateSensor(LuminaEntity, SensorEntity, RestoreEntity):
         if attrs.get("occupied") is True:
             self._controller.restore_occupied()
         # Réveil en cours (« lights_held_until » en 0.10.1)
-        held = attrs.get("wake_hold_until") or attrs.get("lights_held_until")
-        held_until = dt_util.parse_datetime(held) if isinstance(held, str) else None
+        held_until = parse_datetime(attrs.get("wake_hold_until") or attrs.get("lights_held_until"))
         if held_until is not None:
             self._controller.restore_wake_hold(held_until)
         # Contrôles manuels en cours : un redémarrage la nuit ne doit pas
         # rallumer la lumière éteinte au coucher. Ancien nom avant 0.10.0.
         until_wake = attrs.get("overrides_until_wake") or attrs.get("overrides_until_morning") or []
         for kind in (KIND_LIGHTS, KIND_FANS, KIND_CLIMATE):
-            until = attrs.get(f"{kind}_override_until")
-            parsed = dt_util.parse_datetime(until) if isinstance(until, str) else None
-            if parsed is not None:
-                self._controller.restore_override(kind, parsed, until_wake=kind in until_wake)
+            until = parse_datetime(attrs.get(f"{kind}_override_until"))
+            if until is not None:
+                self._controller.restore_override(kind, until, until_wake=kind in until_wake)
 
     @property
     def native_value(self) -> str:

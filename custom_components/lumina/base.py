@@ -52,6 +52,13 @@ def domain_of(entity_id: str) -> str:
     return entity_id.partition(".")[0]
 
 
+def parse_datetime(value: object) -> datetime | None:
+    """Date lue dans un état restauré ou un attribut (texte ISO ou datetime)."""
+    if isinstance(value, datetime):
+        return value
+    return dt_util.parse_datetime(value) if isinstance(value, str) else None
+
+
 class Timer:
     """Minuterie qui connaît son échéance ; relancée, elle remplace la précédente."""
 
@@ -408,9 +415,7 @@ class RoomBase(ABC):
         def _end_override(_now: datetime) -> None:
             if group.override_until_wake and self._wake_if_due():
                 return  # le réveil a levé ce geste avec les autres
-            group.override_started = None
-            group.override_until_wake = False
-            group.override_turned_on = False
+            group.clear_override()
             self._log(f"{group.kind}_override_end")
             self.async_reevaluate()
 

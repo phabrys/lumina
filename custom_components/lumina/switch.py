@@ -9,9 +9,9 @@ from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
-from homeassistant.util import dt as dt_util
 
 from . import LuminaConfigEntry
+from .base import parse_datetime
 from .const import KIND_CLIMATE, KIND_FANS, KIND_LIGHTS, SLEEP_MANUAL
 from .entity import LuminaEntity
 
@@ -66,9 +66,8 @@ class LuminaForcedNightSwitch(LuminaEntity, SwitchEntity, RestoreEntity):
         await super().async_added_to_hass()
         last_state = await self.async_get_last_state()
         if last_state is not None and last_state.state == STATE_ON:
-            until = last_state.attributes.get("until")
-            parsed = dt_util.parse_datetime(until) if isinstance(until, str) else None
-            self._controller.set_forced_night(True, until=parsed, reevaluate=False)
+            until = parse_datetime(last_state.attributes.get("until"))
+            self._controller.set_forced_night(True, until=until, reevaluate=False)
 
     @property
     def is_on(self) -> bool:
@@ -95,12 +94,10 @@ class LuminaSleepSwitch(LuminaEntity, SwitchEntity, RestoreEntity):
         await super().async_added_to_hass()
         last_state = await self.async_get_last_state()
         if last_state is not None and last_state.state == STATE_ON:
-            until = last_state.attributes.get("until")
-            parsed = dt_util.parse_datetime(until) if isinstance(until, str) else None
             attrs = last_state.attributes
             self._controller.start_sleep(
                 source=attrs.get("source") or SLEEP_MANUAL,
-                until=parsed,
+                until=parse_datetime(attrs.get("until")),
                 presence_seen=bool(attrs.get("presence_seen")),
                 restored=True,
                 reevaluate=False,
