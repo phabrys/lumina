@@ -1,7 +1,7 @@
 # Plus ancienne version de Home Assistant prise en charge (hacs.json).
 # Dependabot propose aussi de la mettre à jour : fermer ces PR, la version
 # minimale ne change qu'avec hacs.json.
-pytest-homeassistant-custom-component==0.13.251  # HA 2025.6.0
+pytest-homeassistant-custom-component==0.13.375  # HA 2025.6.0
 # aiodns de HA 2025.6 n'est pas compatible avec pycares 5
 pycares<5
 pytest-github-actions-annotate-failures
