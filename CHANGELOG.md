@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.18.0 — 2026-10-28
+
+- Historique plus léger : le capteur d'état n'enregistre plus dans l'historique de Home Assistant les entités choisies pour la pièce (détecteurs, capteurs, lumières, ventilateurs, clims, entité de sommeil, Workday, calendriers), qui ne changent pas, ni ce qui change sans cesse (`vacancy_at`, `lights_off_at`, `fans_off_at`, `climate_vacant_at`, `effective_temperature`, `night_end_at`). Ces attributs restent dans l'état en direct, pour la Lumina Card, les automatisations et la restauration au redémarrage ; ils n'apparaissent simplement plus dans l'historique.
+- Code réorganisé, sans changement de comportement : présence et périodes dans leurs propres modules (`presence.py`, `periods.py`), minuteries réunies dans une classe `Timer`, entités select décrites en tableau comme les réglages.
+
 ## 0.17.0 — 2026-10-27
 
 - L'attribut `overrides_until_morning` du capteur d'état n'est plus publié : il servait à Lumina Card 0.2, et `overrides_until_wake` le remplace depuis Lumina 0.10.0. Un état enregistré sous l'ancien nom est toujours relu au redémarrage.
