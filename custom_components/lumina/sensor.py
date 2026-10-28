@@ -37,6 +37,31 @@ class LuminaRoomStateSensor(LuminaEntity, SensorEntity, RestoreEntity):
 
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_options = ROOM_STATES
+    # Hors de l'historique : les entités choisies, qui ne changent pas, et ce
+    # qui change sans cesse (échéances en cours, température). L'état en
+    # direct et la restauration au redémarrage les gardent.
+    _unrecorded_attributes = frozenset(
+        {
+            "presence_sensors",
+            "presence_still_sensors",
+            "presence_hold_entities",
+            "illuminance_sensor",
+            "temperature_sensor",
+            "humidity_sensor",
+            "sleep_entity",
+            "workday_entity",
+            "holiday_calendars",
+            "lights",
+            "fans",
+            "climates",
+            "effective_temperature",
+            "vacancy_at",
+            "lights_off_at",
+            "fans_off_at",
+            "climate_vacant_at",
+            "night_end_at",
+        }
+    )
 
     def __init__(self, entry: LuminaConfigEntry) -> None:
         super().__init__(entry, "room_state")
