@@ -40,16 +40,22 @@ class DaylightControl(RoomBase):
 
         Inconnu, le soleil est supposé couché. Le lever du jour se déduit du
         prochain, un jour plus tôt : l'écart d'un jour à l'autre est minime.
+
+        Juste après le coucher, sun.sun peut rester quelques minutes levé alors
+        que son prochain coucher est déjà demain : un lever attendu avant le
+        prochain coucher veut dire que le soleil est couché.
         """
         sun = self.hass.states.get(SUN_ENTITY)
         if sun is None or sun.state != SUN_ABOVE_HORIZON:
             return False
         now = dt_util.utcnow()
         setting = parse_datetime(sun.attributes.get(SUN_NEXT_SETTING))
+        rising = parse_datetime(sun.attributes.get(SUN_NEXT_RISING))
+        if setting is not None and rising is not None and rising < setting:
+            return False
         advance = timedelta(minutes=self.settings[SETTING_SUNSET_ADVANCE])
         if setting is not None and now >= setting - advance:
             return False
-        rising = parse_datetime(sun.attributes.get(SUN_NEXT_RISING))
         delay = timedelta(minutes=self.settings[SETTING_SUNRISE_DELAY])
         return rising is None or now >= rising - timedelta(days=1) + delay
 

@@ -840,6 +840,25 @@ async def test_no_lux_sensor_turns_on_before_sunset(hass: HomeAssistant, daytime
     assert len(turn_on) == 1
 
 
+async def test_no_lux_sensor_keeps_lights_on_just_after_sunset(
+    hass: HomeAssistant, daytime
+) -> None:
+    """Juste après le coucher, sun.sun reste levé alors que ses échéances sont déjà à demain."""
+    turn_off = async_mock_service(hass, "homeassistant", "turn_off")
+    _sun(hass, "above_horizon", rising=timedelta(hours=13), setting=timedelta(minutes=20))
+    hass.states.async_set(PIR, "on")
+    hass.states.async_set(LIGHT, "on")
+    entry = await _setup(hass, **{CONF_ILLUMINANCE: None})
+
+    # Coucher passé : prochain coucher demain, après le prochain lever.
+    _sun(hass, "above_horizon", rising=timedelta(hours=12), setting=timedelta(hours=24))
+    await hass.async_block_till_done()
+    await _next_minute(hass, daytime, 1)
+
+    assert turn_off == []
+    assert _room(hass, entry).attributes["daylight_locked"] is False
+
+
 async def test_no_lux_sensor_turns_off_after_sunrise(hass: HomeAssistant, daytime) -> None:
     entries = async_capture_events(hass, "logbook_entry")
     turn_on = async_mock_service(hass, "light", "turn_on")

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.18.1 — 2026-11-02
+
+- Pièce sans capteur de luminosité : une lumière allumée pouvait s'éteindre au coucher du soleil (« éteint les lumières, soleil levé ») et l'allumage automatique se bloquer jusqu'au départ de la pièce. Pendant environ 2 min après le coucher, `sun.sun` reste levé alors que son prochain coucher indique déjà le lendemain, et Lumina croyait au jour.
+
 ## 0.18.0 — 2026-10-28
 
 - Historique plus léger : le capteur d'état n'enregistre plus dans l'historique de Home Assistant les entités choisies pour la pièce (détecteurs, capteurs, lumières, ventilateurs, clims, entité de sommeil, Workday, calendriers), qui ne changent pas, ni ce qui change sans cesse (`vacancy_at`, `lights_off_at`, `fans_off_at`, `climate_vacant_at`, `effective_temperature`, `night_end_at`). Ces attributs restent dans l'état en direct, pour la Lumina Card, les automatisations et la restauration au redémarrage ; ils n'apparaissent simplement plus dans l'historique.
