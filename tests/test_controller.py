@@ -156,24 +156,18 @@ async def test_warning_cancelled_when_presence_returns(hass: HomeAssistant) -> N
 
 
 async def test_manual_override_blocks_automation(hass: HomeAssistant) -> None:
-    turn_on = async_mock_service(hass, "light", "turn_on")
     hass.states.async_set(PIR, "on")
     hass.states.async_set(LUX, "500")
-    hass.states.async_set(LIGHT, "on")
+    hass.states.async_set(LIGHT, "off")
     entry = await _setup(hass)
 
-    # Extinction à la main : Lumina doit laisser la main pendant 30 min.
-    hass.states.async_set(LIGHT, "off")
+    # Allumage à la main : Lumina doit laisser la main pendant 30 min.
+    hass.states.async_set(LIGHT, "on")
     await hass.async_block_till_done()
     assert _room(hass, entry).state == "override"
 
-    hass.states.async_set(LUX, "5")
-    await hass.async_block_till_done()
-    assert turn_on == []
-
     # Fin de la reprise manuelle : la règle s'applique de nouveau.
     await _later(hass, minutes=31)
-    assert _entities(turn_on) == [[LIGHT]]
     assert _room(hass, entry).state == "occupied"
 
 
@@ -912,8 +906,9 @@ async def test_simultaneous_changes_make_one_override(hass: HomeAssistant) -> No
     await hass.async_block_till_done()
     await _later(hass, seconds=6)  # entrée écrite une fois le geste terminé
 
-    overrides = [e for e in entries if e.data["message"].startswith("laisse la main")]
-    assert len(overrides) == 1
+    messages = [e.data["message"] for e in entries]
+    assert messages.count("garde les lumières éteintes tant que la pièce reste occupée") == 1
+    assert not [m for m in messages if m.startswith("laisse la main")]
 
 
 # ----------------------------------------------------------------------

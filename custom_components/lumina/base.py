@@ -127,6 +127,8 @@ class ActuatorGroup:
     override_started: float | None = None
     # Reprise manuelle qui tient jusqu'à la fin du sommeil
     override_until_wake: bool = False
+    # Lumières éteintes à la main : tenues tant que la pièce reste occupée
+    override_until_vacant: bool = False
     # Reprise due à un allumage à la main (elle garde la durée réglée)
     override_turned_on: bool = False
     # Entrée de journal différée de la reprise manuelle
@@ -162,6 +164,7 @@ class ActuatorGroup:
         self.override_timer.cancel()
         self.override_started = None
         self.override_until_wake = False
+        self.override_until_vacant = False
         self.override_turned_on = False
         self.override_log_timer.cancel()
 
@@ -415,6 +418,10 @@ class RoomBase(ABC):
         def _end_override(_now: datetime) -> None:
             if group.override_until_wake and self._wake_if_due():
                 return  # le réveil a levé ce geste avec les autres
+            if group.override_until_vacant and self.occupied and not self._any_on(group):
+                # Pas d'échéance pour ce geste : seule une limite pour la minuterie.
+                self._arm_override(group, self._next_night_end())
+                return
             group.clear_override()
             self._log(f"{group.kind}_override_end")
             self.async_reevaluate()

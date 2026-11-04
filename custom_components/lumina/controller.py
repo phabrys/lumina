@@ -37,6 +37,7 @@ from .base import (
 )
 from .climate_control import ClimateControl
 from .const import (
+    BEDTIME_OVERRIDE,
     BEDTIME_UNTIL_VACANT,
     CONF_CLIMATES,
     CONF_FANS,
@@ -207,12 +208,19 @@ class RoomController(
     # ------------------------------------------------------------------
 
     @callback
-    def restore_override(self, kind: str, until: datetime, *, until_wake: bool) -> None:
+    def restore_override(
+        self, kind: str, until: datetime, *, until_wake: bool, until_vacant: bool = False
+    ) -> None:
         """Contrôle manuel d'avant le redémarrage : repris jusqu'à son échéance."""
         group = self.groups[kind]
-        if not group.entity_ids or until <= dt_util.utcnow():
+        if not group.entity_ids:
             return
+        if until <= dt_util.utcnow():
+            if not until_vacant:
+                return
+            until = self._next_night_end()  # cette limite n'est pas une fin
         group.override_until_wake = until_wake
+        group.override_until_vacant = until_vacant
         self._arm_override(group, until)
 
     @callback
@@ -343,6 +351,9 @@ class RoomController(
         overrides_until_wake = [
             group.kind for group in self.groups.values() if group.override_until_wake
         ]
+        overrides_until_vacant = [
+            group.kind for group in self.groups.values() if group.override_until_vacant
+        ]
         night_end_at = self._next_night_end()
         return {
             "period": self.period,
@@ -381,6 +392,8 @@ class RoomController(
             "climate_override_until": climate.override_until,
             # Contrôles manuels qui tiennent jusqu'à la fin du sommeil
             "overrides_until_wake": overrides_until_wake,
+            # Lumières éteintes à la main, tenues tant que la pièce reste occupée
+            "overrides_until_vacant": overrides_until_vacant,
             "climate_running": self._climate_running(),
             "climate_vacant_action": self._climate_action(),
             "climate_vacant_at": climate.off_timer.at,
@@ -634,6 +647,8 @@ class RoomController(
                 self._start_override(group, turned_on=changed.get(STATE_FIELD) == STATE_ON)
                 if self._is_bedtime_gesture(group, changed, new_state):
                     self.start_sleep(source=SLEEP_LIGHTS_OFF)
+                else:
+                    self._hold_lights_off(group, changed)
             # Clim lancée ou arrêtée : les ventilateurs s'adaptent.
             if group.kind == KIND_CLIMATE and STATE_FIELD in changed and self.occupied_or_presumed:
                 self._evaluate_fans()
@@ -645,11 +660,14 @@ class RoomController(
         minutes = self.settings[SETTING_OVERRIDE_DURATION]
         if not group.entity_ids or not group.enabled or minutes <= 0:
             return
+        if group.override_until_vacant and not self._any_on(group):
+            return  # toujours éteintes : le geste tient
         now = self.hass.loop.time()
         if (
             group.overridden
             and group.override_started is not None
             and now - group.override_started < OVERRIDE_DEBOUNCE
+            and not group.override_until_vacant  # rallumées aussitôt : nouveau geste
         ):
             # Même geste (extinction + changement de vitesse, plusieurs lampes…)
             return
@@ -681,6 +699,29 @@ class RoomController(
             self._log_override_later(group, minutes)
         self._arm_override(group, until)
 
+    def _hold_lights_off(self, group: ActuatorGroup, changed: dict[str, Any]) -> None:
+        """Lumières éteintes à la main dans une pièce occupée : elles le restent.
+
+        Le geste tient jusqu'au départ, pour ne pas rallumer sur des personnes
+        qui ont éteint et sont restées. En sommeil, le sommeil les garde déjà
+        éteintes. La nuit, le réglage « Durée réglée » garde sa durée.
+        """
+        if (
+            group.kind != KIND_LIGHTS
+            or not group.overridden
+            or group.override_until_vacant
+            or changed.get(STATE_FIELD) != STATE_OFF
+            or self._any_on(group)
+            or not self.occupied
+            or self.sleeping
+            or (self.is_night and self.bedtime_gesture == BEDTIME_OVERRIDE)
+        ):
+            return
+        group.override_until_vacant = True
+        group.override_turned_on = False
+        self._log("lights_override_vacant")
+        self._arm_override(group, self._next_night_end())
+
     def _log_override_later(self, group: ActuatorGroup, minutes: float) -> None:
         """Journal du contrôle manuel, une fois le geste terminé.
 
@@ -691,7 +732,11 @@ class RoomController(
 
         @callback
         def _log_override(_now: datetime) -> None:
-            if group.override_started == started and not group.override_until_wake:
+            if (
+                group.override_started == started
+                and not group.override_until_wake
+                and not group.override_until_vacant
+            ):
                 self._log(f"{group.kind}_override", minutes=minutes)
 
         group.override_log_timer.start(self.hass, OVERRIDE_DEBOUNCE, _log_override)

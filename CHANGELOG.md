@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.19.0 — 2026-11-04
+
+- Une lumière éteinte à la main dans une pièce occupée reste éteinte tant que la pièce reste occupée, à toute heure, au lieu de se rallumer à la fin du contrôle manuel (30 min par défaut). Le geste prend fin quand la pièce est confirmée vide, quand on rallume, ou avec **Reprendre l'automatisme**. Journal : « garde les lumières éteintes tant que la pièce reste occupée ». Nouvel attribut `overrides_until_vacant`, relu au redémarrage.
+- Tant que personne ne part, la lumière ne s'allume donc plus seule au coucher du soleil après une extinction à la main. La durée réglée vaut toujours pour un allumage à la main, les ventilateurs et la clim, et, la nuit, pour le réglage **Extinction à la main la nuit** sur **Durée réglée**.
+
 ## 0.18.1 — 2026-11-02
 
 - Pièce sans capteur de luminosité : une lumière allumée pouvait s'éteindre au coucher du soleil (« éteint les lumières, soleil levé ») et l'allumage automatique se bloquer jusqu'au départ de la pièce. Pendant environ 2 min après le coucher, `sun.sun` reste levé alors que son prochain coucher indique déjà le lendemain, et Lumina croyait au jour.
