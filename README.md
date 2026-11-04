@@ -34,6 +34,7 @@ stateDiagram-v2
 Chaque pièce a sa propre plage de nuit (22 h → 7 h par défaut) avec ses réglages dédiés :
 
 - **Luminosité des lumières** : 30 % la nuit, 100 % le jour par défaut. À **0 %**, les lumières ne s'allument plus automatiquement la nuit (pratique dans une chambre d'enfants).
+- **Délai d'extinction qui s'adapte** : revenir pendant l'avertissement ou moins de 5 min après une extinction automatique des lumières double le délai suivant, jusqu'à 15 min. Une absence d'au moins 30 min le remet à sa valeur.
 - **Délais d'extinction** propres à la nuit. Celui des ventilateurs est long par défaut (30 min), car un détecteur PIR ne voit pas une personne endormie immobile.
 - **Seuil de température** de nuit (26 °C par défaut).
 

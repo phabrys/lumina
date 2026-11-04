@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.20.0 — 2026-11-04
+
+- Lumières : revenir dans la pièce pendant l'avertissement ou moins de 5 min après une extinction automatique double le délai d'extinction suivant, jusqu'à 15 min (un délai réglé plus long reste tel quel). Une absence d'au moins 30 min le remet à sa valeur, comme un redémarrage de Home Assistant. Ventilateurs et clim ne changent pas. Journal : « retour rapide : prochaine extinction après 4 min », « longue absence : délai d'extinction habituel ». Nouvel attribut `lights_off_delay_factor`.
+- Lampe ou ventilateur lent à répondre : Lumina n'envoie plus plusieurs fois le même allumage pendant qu'il l'attend (6 ordres en 8 s pour une lampe qui a répondu en 18 s). Sans réponse au bout de 1 min, ou si l'ordre échoue, il peut être renvoyé.
+- Avertissement avant extinction : une lampe à crans réglée au plus bas (cran 51) ne s'éteint plus dès la baisse. Elle reste allumée pendant l'avertissement, puis s'éteint : on a de nouveau le temps de revenir.
+- Journal : une lampe qui s'éteint malgré tout pendant l'avertissement est bien notée « éteint les lumières, pièce vide ».
+
 ## 0.19.0 — 2026-11-04
 
 - Une lumière éteinte à la main dans une pièce occupée reste éteinte tant que la pièce reste occupée, à toute heure, au lieu de se rallumer à la fin du contrôle manuel (30 min par défaut). Le geste prend fin quand la pièce est confirmée vide, quand on rallume, ou avec **Reprendre l'automatisme**. Journal : « garde les lumières éteintes tant que la pièce reste occupée ». Nouvel attribut `overrides_until_vacant`, relu au redémarrage.

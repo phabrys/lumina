@@ -576,7 +576,7 @@ async def _night_light_vacated(hass: HomeAssistant, brightness: int):
 
 async def test_warning_dims_a_faint_light_further(hass: HomeAssistant) -> None:
     turn_on, turn_off = await _night_light_vacated(hass, 13)  # 5 %
-    assert turn_on[-1].data["brightness"] == 6  # baisse, sans remonter à 20 %
+    assert turn_on[-1].data["brightness"] == 7  # baisse, sans remonter à 20 %
     assert turn_off == []
 
 

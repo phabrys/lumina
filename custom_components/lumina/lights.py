@@ -16,6 +16,7 @@ from homeassistant.components.light import (
 from homeassistant.const import (
     SERVICE_TURN_ON,
 )
+from homeassistant.util import dt as dt_util
 
 from .base import (
     ActuatorGroup,
@@ -24,6 +25,9 @@ from .base import (
 )
 from .const import (
     KIND_LIGHTS,
+    LIGHTS_LONG_ABSENCE,
+    LIGHTS_MAX_OFF_DELAY,
+    LIGHTS_QUICK_RETURN,
     SETTING_DAY_BRIGHTNESS,
     SETTING_DAY_COLOR_TEMP,
     SETTING_EVENING_BRIGHTNESS,
@@ -39,6 +43,55 @@ from .const import (
 
 class LightControl(RoomBase):
     """Partie du contrôleur consacrée aux lumières."""
+
+    def _init_lights(self) -> None:
+        # Multiplicateur du délai d'extinction, doublé à chaque retour rapide
+        self.lights_off_delay_factor = 1
+        # Dernière extinction automatique en pièce vide, et début de l'absence
+        self._lights_off_at: datetime | None = None
+        self._vacated_at: datetime | None = None
+
+    def _lights_off_delay(self, delay: float) -> float:
+        """Délai réglé, allongé après des retours rapides, jusqu'au plafond."""
+        return min(delay * self.lights_off_delay_factor, max(delay, LIGHTS_MAX_OFF_DELAY))
+
+    def _note_lights_off(self) -> None:
+        """Lumières éteintes automatiquement, pièce vide."""
+        self._lights_off_at = dt_util.utcnow()
+
+    def _note_vacated(self) -> None:
+        """Pièce vide confirmée : l'absence commence."""
+        self._vacated_at = dt_util.utcnow()
+
+    def _note_room_return(self) -> None:
+        """Retour dans la pièce : extinction trop hâtive, ou longue absence ?
+
+        Revenir pendant l'avertissement ou peu après l'extinction veut dire que
+        personne n'était vraiment parti, ou que le détecteur l'a perdu.
+        """
+        group = self.groups[KIND_LIGHTS]
+        now = dt_util.utcnow()
+        off_at, vacated_at = self._lights_off_at, self._vacated_at
+        self._lights_off_at = self._vacated_at = None
+        if (
+            vacated_at is not None
+            and (now - vacated_at).total_seconds() >= LIGHTS_LONG_ABSENCE
+            and self.lights_off_delay_factor > 1
+        ):
+            self.lights_off_delay_factor = 1
+            self._log("lights_off_delay_reset")
+        elif group.warning or (
+            off_at is not None and (now - off_at).total_seconds() <= LIGHTS_QUICK_RETURN
+        ):
+            self._lengthen_lights_off_delay(group)
+
+    def _lengthen_lights_off_delay(self, group: ActuatorGroup) -> None:
+        """Double le délai d'extinction, sauf si le plafond est déjà atteint."""
+        delay = self._setting(group.off_delay_key, group.night_off_delay_key)
+        if self._lights_off_delay(delay) >= max(delay, LIGHTS_MAX_OFF_DELAY) or delay <= 0:
+            return
+        self.lights_off_delay_factor *= 2
+        self._log("lights_off_delay_longer", minutes=round(self._lights_off_delay(delay) / 60, 1))
 
     def _evaluate_lights(self) -> None:
         group = self.groups[KIND_LIGHTS]
@@ -83,6 +136,7 @@ class LightControl(RoomBase):
         color_temp = self._light_setting(
             SETTING_DAY_COLOR_TEMP, SETTING_EVENING_COLOR_TEMP, SETTING_NIGHT_COLOR_TEMP
         )
+        self._note_turning_on(entity_ids or group.entity_ids)
         context = self._new_context()
         lights_ct: list[str] = []
         lights_plain: list[str] = []
@@ -168,7 +222,9 @@ class LightControl(RoomBase):
             current = self._brightness(entity_id)
             target = round(255 * WARNING_BRIGHTNESS / 100)
             if current is not None:
-                target = min(target, current // 2)
+                # Moitié arrondie au-dessus : une lampe à crans ne doit pas
+                # tomber sur le cran 0 et s'éteindre sans avertir (51 → 26, pas 25).
+                target = min(target, (current + 1) // 2)
             if target >= WARNING_MIN_BRIGHTNESS:
                 targets.setdefault(target, []).append(entity_id)
         if not targets:

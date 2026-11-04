@@ -220,6 +220,8 @@ class RoomBase(ABC):
         # Ce que Lumina vient de demander à chaque entité : un appareil lent
         # (cloud, clim) peut le confirmer plus tard sous un autre contexte.
         self._expected: dict[str, tuple[datetime, dict[str, Any]]] = {}
+        # Allumages demandés et pas encore confirmés, avec leur instant d'envoi
+        self._turning_on: dict[str, datetime] = {}
         self._last_logs: dict[str, datetime] = {}
         self._listeners: list[Callable[[], None]] = []
         # Contrôleur arrêté (pièce déchargée ou rechargée) : plus de journal
@@ -257,6 +259,10 @@ class RoomBase(ABC):
     @abstractmethod
     def _note_sleeper_presence(self) -> None:
         """Présence détectée : retenue si la pièce dort."""
+
+    @abstractmethod
+    def _note_room_return(self) -> None:
+        """Quelqu'un revient dans la pièce : le délai d'extinction s'adapte."""
 
     @abstractmethod
     def _room_vacated(self) -> None:
@@ -366,8 +372,26 @@ class RoomBase(ABC):
         """Entités du groupe à allumer, selon son mode."""
         off = [e for e in group.entity_ids if not self._is_on(e)]
         if group.mode == MODE_ALL:
-            return off
-        return group.entity_ids if len(off) == len(group.entity_ids) else []
+            targets = off
+        else:
+            targets = group.entity_ids if len(off) == len(group.entity_ids) else []
+        return [e for e in targets if not self._turn_on_pending(e)]
+
+    def _note_turning_on(self, entity_ids: list[str]) -> None:
+        """Allumage envoyé : un appareil lent peut mettre du temps à répondre."""
+        now = dt_util.utcnow()
+        self._turning_on.update(dict.fromkeys(entity_ids, now))
+
+    def _turn_on_pending(self, entity_id: str) -> bool:
+        """Allumage déjà envoyé et encore attendu : pas de second ordre.
+
+        Sans réponse après CONFIRMATION_WINDOW, l'ordre peut être renvoyé.
+        """
+        sent_at = self._turning_on.get(entity_id)
+        return (
+            sent_at is not None
+            and (dt_util.utcnow() - sent_at).total_seconds() <= CONFIRMATION_WINDOW
+        )
 
     @property
     def apparent_temperature(self) -> float | None:
@@ -477,6 +501,8 @@ class RoomBase(ABC):
                 context=context,
             )
         except Exception as err:
+            for entity_id in entity_ids:
+                self._turning_on.pop(entity_id, None)  # à retenter sans attendre
             _LOGGER.warning(
                 "%s : échec de %s.%s sur %s : %s",
                 self.name,

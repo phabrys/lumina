@@ -57,6 +57,8 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "lights_off_sun_up": "éteint les lumières, soleil levé",
         "lights_warning": "baisse les lumières avant extinction",
         "lights_off_vacant": "éteint les lumières, pièce vide",
+        "lights_off_delay_longer": "retour rapide : prochaine extinction après {minutes:g} min",
+        "lights_off_delay_reset": "longue absence : délai d'extinction habituel",
         # Ventilateurs
         "fans_on": "allume les ventilateurs ({reason})",
         "fans_on_speed": "allume les ventilateurs à {percentage} % ({reason})",
@@ -127,6 +129,8 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "lights_off_sun_up": "turns off the lights, sun up",
         "lights_warning": "dims the lights before turning them off",
         "lights_off_vacant": "turns off the lights, room empty",
+        "lights_off_delay_longer": "quick return: next turn-off after {minutes:g} min",
+        "lights_off_delay_reset": "long absence: usual turn-off delay",
         "fans_on": "turns on the fans ({reason})",
         "fans_on_speed": "turns on the fans at {percentage} % ({reason})",
         "fans_off_temperature": "stops the fans, temperature back down ({reason})",

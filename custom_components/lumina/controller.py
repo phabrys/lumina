@@ -182,6 +182,7 @@ class RoomController(
         self._init_days(config.get(CONF_WORKDAY), list(config.get(CONF_HOLIDAYS) or []))
         self._init_climate(dict(DEFAULT_CLIMATE_ACTIONS))
         self._init_daylight()
+        self._init_lights()
         # Ventilateurs pendant que la clim tourne
         self.fans_with_climate = FANS_WITH_CLIMATE_NORMAL
         self._unsubs: list[CALLBACK_TYPE] = []
@@ -384,6 +385,7 @@ class RoomController(
             "effective_temperature": self._effective_temperature(),
             "lights_override_until": lights.override_until,
             "fans_override_until": fans.override_until,
+            "lights_off_delay_factor": self.lights_off_delay_factor,
             "lights_off_pending": lights.off_timer.active,
             "lights_off_at": lights.off_timer.at,
             "fans_off_at": fans.off_timer.at,
@@ -498,6 +500,8 @@ class RoomController(
         group.cancel_off_timer()
         group.cycle_timer.cancel()
         delay = self._setting(group.off_delay_key, group.night_off_delay_key)
+        if group.kind == KIND_LIGHTS:
+            delay = self._lights_off_delay(delay)
         # Le délai court depuis la fin réelle de présence, pas depuis la confirmation.
         delay = max(delay - self._off_delay_credit, 0)
 
@@ -520,13 +524,13 @@ class RoomController(
         def _final_off(_now: datetime) -> None:
             group.warning = False
             group.saved_brightness = {}
-            if (
-                not self.occupied
-                and not self._presence_unknown()
-                and group.active
-                and self._any_on(group)
-            ):
-                self._turn_off(group)
+            if not self.occupied and not self._presence_unknown() and group.active:
+                if self._any_on(group):
+                    self._turn_off(group)
+                else:
+                    # Lampe éteinte par la baisse elle-même : le Journal le dit.
+                    self._note_lights_off()
+                    self._log(f"{group.kind}_off_vacant")
             self._notify()
 
         group.off_timer.start(self.hass, delay, _delay_elapsed)
@@ -535,6 +539,8 @@ class RoomController(
         if group.kind == KIND_CLIMATE:
             self._apply_climate_vacant(group)
             return
+        if group.kind == KIND_LIGHTS:
+            self._note_lights_off()
         self._call(group, SERVICE_TURN_OFF)
         self._log(f"{group.kind}_off_vacant")
 
@@ -544,6 +550,7 @@ class RoomController(
 
     def _room_vacated(self) -> None:
         """Pièce vide confirmée : réveil éventuel, levée des reprises manuelles."""
+        self._note_vacated()
         if (
             self.sleeping
             and self.sleep_source == SLEEP_LIGHTS_OFF
@@ -628,6 +635,8 @@ class RoomController(
         def _handler(event: Event[EventStateChangedData]) -> None:
             old_state = event.data["old_state"]
             new_state = event.data["new_state"]
+            if old_state is None or new_state is None or old_state.state != new_state.state:
+                self._turning_on.pop(event.data["entity_id"], None)  # l'appareil a répondu
             if (
                 old_state is None
                 or new_state is None

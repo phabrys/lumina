@@ -170,6 +170,7 @@ class PresenceControl(RoomBase):
             self._cancel_vacancy()
             self._note_sleeper_presence()
             if not self.occupied:
+                self._note_room_return()
                 self.occupied = True
                 self._vacant_since = None
                 _LOGGER.debug("%s : pièce occupée", self.name)

@@ -137,6 +137,7 @@ class FanControl(RoomBase):
         return round(min_speed + (100 - min_speed) * ratio)
 
     def _turn_on_fans(self, entity_ids: list[str], percentage: int | None) -> None:
+        self._note_turning_on(entity_ids)
         context = self._new_context()
         fans = [e for e in entity_ids if domain_of(e) == "fan"]
         others = [e for e in entity_ids if domain_of(e) != "fan"]

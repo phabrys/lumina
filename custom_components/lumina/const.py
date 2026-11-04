@@ -123,6 +123,13 @@ OVERRIDE_DEBOUNCE: Final = 5  # s
 # sans que la confirmation passe pour un geste manuel
 CONFIRMATION_WINDOW: Final = 60  # s
 
+# Retour peu après une extinction automatique : le délai suivant double, jusqu'à
+# ce plafond (sans jamais raccourcir un délai réglé plus long). Une longue absence
+# le remet à sa valeur.
+LIGHTS_QUICK_RETURN: Final = 300  # s
+LIGHTS_LONG_ABSENCE: Final = 1800  # s
+LIGHTS_MAX_OFF_DELAY: Final = 900  # s
+
 # Soleil : remplace le capteur de luminosité absent ou muet
 SUN_ENTITY: Final = "sun.sun"
 SUN_BELOW_HORIZON: Final = "below_horizon"
