@@ -386,6 +386,10 @@ class RoomController(
             "lights_override_until": lights.override_until,
             "fans_override_until": fans.override_until,
             "lights_off_delay_factor": self.lights_off_delay_factor,
+            # Délai réel (s) pour la période en cours, retours rapides compris
+            "lights_off_delay": self._lights_off_delay(
+                self._setting(lights.off_delay_key, lights.night_off_delay_key)
+            ),
             "lights_off_pending": lights.off_timer.active,
             "lights_off_at": lights.off_timer.at,
             "fans_off_at": fans.off_timer.at,

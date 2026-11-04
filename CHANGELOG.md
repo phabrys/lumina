@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.20.1 — 2026-11-04
+
+- Nouvel attribut `lights_off_delay` : le délai d'extinction réel des lumières, en secondes, pour la période en cours et retours rapides compris. Lumina Card 0.10.6 l'affiche.
+
 ## 0.20.0 — 2026-11-04
 
 - Lumières : revenir dans la pièce pendant l'avertissement ou moins de 5 min après une extinction automatique double le délai d'extinction suivant, jusqu'à 15 min (un délai réglé plus long reste tel quel). Une absence d'au moins 30 min le remet à sa valeur, comme un redémarrage de Home Assistant. Ventilateurs et clim ne changent pas. Journal : « retour rapide : prochaine extinction après 4 min », « longue absence : délai d'extinction habituel ». Nouvel attribut `lights_off_delay_factor`.

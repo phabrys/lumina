@@ -64,7 +64,9 @@ async def test_quick_return_doubles_the_delay(hass: HomeAssistant, daytime) -> N
     await _come_back(hass)
 
     assert await _leave(hass, entry) == pytest.approx(240, abs=5)
-    assert _room(hass, entry).attributes["lights_off_delay_factor"] == 2
+    room = _room(hass, entry)
+    assert room.attributes["lights_off_delay_factor"] == 2
+    assert room.attributes["lights_off_delay"] == 240
     assert "retour rapide : prochaine extinction après 4 min" in [
         e.data["message"] for e in entries
     ]
@@ -105,6 +107,7 @@ async def test_delay_is_capped(hass: HomeAssistant, daytime) -> None:
         await _come_back(hass)
 
     assert delays == pytest.approx([120, 240, 480, 900, 900], abs=5)
+    assert _room(hass, entry).attributes["lights_off_delay"] == 900
 
 
 async def test_return_during_warning_doubles_the_delay(hass: HomeAssistant) -> None:

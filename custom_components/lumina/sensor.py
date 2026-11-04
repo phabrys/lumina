@@ -57,6 +57,7 @@ class LuminaRoomStateSensor(LuminaEntity, SensorEntity, RestoreEntity):
             "effective_temperature",
             "vacancy_at",
             "lights_off_at",
+            "lights_off_delay",
             "fans_off_at",
             "climate_vacant_at",
             "night_end_at",
